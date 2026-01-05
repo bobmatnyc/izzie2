@@ -400,6 +400,86 @@ export const userAuthorizationPreferences = pgTable(
 );
 
 /**
+ * Consent history table - tracks all consent changes (POC-4 Phase 2)
+ * Provides full audit trail of authorization modifications
+ */
+export const consentHistory = pgTable(
+  'consent_history',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    authorizationId: uuid('authorization_id')
+      .references(() => proxyAuthorizations.id, { onDelete: 'cascade' })
+      .notNull(),
+
+    // Change tracking
+    changeType: text('change_type').notNull(), // 'granted', 'modified', 'revoked', 'expired'
+    previousState: jsonb('previous_state').$type<Record<string, unknown>>(),
+    newState: jsonb('new_state').$type<Record<string, unknown>>(),
+
+    // Metadata
+    changedBy: text('changed_by'), // 'user', 'system', 'admin'
+    reason: text('reason'), // Optional reason for change
+
+    // Timestamp
+    timestamp: timestamp('timestamp').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('consent_history_user_id_idx').on(table.userId),
+    authIdIdx: index('consent_history_auth_id_idx').on(table.authorizationId),
+    timestampIdx: index('consent_history_timestamp_idx').on(table.timestamp),
+    changeTypeIdx: index('consent_history_change_type_idx').on(table.changeType),
+  })
+);
+
+/**
+ * Proxy rollbacks table - tracks rollback operations (POC-4 Phase 2)
+ * Enables undoing proxy actions with full audit trail
+ */
+export const proxyRollbacks = pgTable(
+  'proxy_rollbacks',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    auditEntryId: uuid('audit_entry_id')
+      .references(() => proxyAuditLog.id, { onDelete: 'cascade' })
+      .notNull(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+
+    // Rollback strategy
+    strategy: text('strategy').notNull(), // 'direct_undo', 'compensating', 'manual', 'not_supported'
+    status: text('status').notNull(), // 'pending', 'in_progress', 'completed', 'failed'
+
+    // Captured state for rollback
+    rollbackData: jsonb('rollback_data').$type<{
+      originalInput?: Record<string, unknown>;
+      originalOutput?: Record<string, unknown>;
+      undoActions?: Array<{ action: string; params: unknown }>;
+      [key: string]: unknown;
+    }>(),
+
+    // Result tracking
+    errorMessage: text('error_message'),
+    completedAt: timestamp('completed_at'),
+
+    // Rollback window (TTL)
+    expiresAt: timestamp('expires_at').notNull(), // Default 24h from creation
+
+    // Timestamps
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    auditEntryIdx: index('proxy_rollbacks_audit_entry_idx').on(table.auditEntryId),
+    userIdIdx: index('proxy_rollbacks_user_id_idx').on(table.userId),
+    statusIdx: index('proxy_rollbacks_status_idx').on(table.status),
+    expiresAtIdx: index('proxy_rollbacks_expires_at_idx').on(table.expiresAt),
+  })
+);
+
+/**
  * Type exports for proxy authorization
  */
 export type ProxyAuthorization = typeof proxyAuthorizations.$inferSelect;
@@ -413,3 +493,9 @@ export type NewAuthorizationTemplate = typeof authorizationTemplates.$inferInser
 
 export type UserAuthorizationPreference = typeof userAuthorizationPreferences.$inferSelect;
 export type NewUserAuthorizationPreference = typeof userAuthorizationPreferences.$inferInsert;
+
+export type ConsentHistory = typeof consentHistory.$inferSelect;
+export type NewConsentHistory = typeof consentHistory.$inferInsert;
+
+export type ProxyRollback = typeof proxyRollbacks.$inferSelect;
+export type NewProxyRollback = typeof proxyRollbacks.$inferInsert;

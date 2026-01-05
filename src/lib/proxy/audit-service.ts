@@ -11,12 +11,27 @@ import type { LogProxyActionParams, AuditLogQueryOptions } from './types';
 /**
  * Log a proxy action to the audit trail
  * Records all details of the action for transparency
+ * Captures rollback data for eligible actions
  *
  * @param params - Action details to log
  * @returns The created audit log entry
  */
 export async function logProxyAction(params: LogProxyActionParams) {
   const db = dbClient.getDb();
+
+  // Enhance input/output to include rollback data
+  // This helps with rollback operations later
+  const enhancedInput = {
+    ...params.input,
+    // Capture timestamp for rollback window
+    _capturedAt: new Date().toISOString(),
+  };
+
+  const enhancedOutput = {
+    ...params.output,
+    // Mark if action is rollback-eligible
+    _rollbackEligible: params.success && isRollbackEligible(params.actionClass),
+  };
 
   const [entry] = await db
     .insert(proxyAuditLog)
@@ -27,8 +42,8 @@ export async function logProxyAction(params: LogProxyActionParams) {
       actionClass: params.actionClass,
       mode: params.mode,
       persona: params.persona,
-      input: params.input,
-      output: params.output,
+      input: enhancedInput,
+      output: enhancedOutput,
       modelUsed: params.modelUsed,
       confidence: params.confidence ? Math.round(params.confidence * 100) : null,
       tokensUsed: params.tokensUsed,
@@ -41,6 +56,17 @@ export async function logProxyAction(params: LogProxyActionParams) {
     .returning();
 
   return entry;
+}
+
+/**
+ * Check if action class supports rollback
+ *
+ * @param actionClass - Action class
+ * @returns True if rollback is supported
+ */
+function isRollbackEligible(actionClass: string): boolean {
+  const nonRollbackable = ['send_email', 'post_slack_message'];
+  return !nonRollbackable.includes(actionClass);
 }
 
 /**

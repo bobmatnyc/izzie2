@@ -10,6 +10,9 @@ import { revokeAuthorization, getAuthorization } from '@/lib/proxy/authorization
 /**
  * DELETE /api/proxy/authorization/[id]
  * Revoke an authorization
+ *
+ * Request Body (optional):
+ * - reason: string - Reason for revocation
  */
 export async function DELETE(
   request: NextRequest,
@@ -54,7 +57,16 @@ export async function DELETE(
       );
     }
 
-    const revoked = await revokeAuthorization(authorizationId, userId);
+    // Parse optional reason from body
+    let reason: string | undefined;
+    try {
+      const body = await request.json();
+      reason = body.reason;
+    } catch {
+      // No body or invalid JSON - that's fine
+    }
+
+    const revoked = await revokeAuthorization(authorizationId, userId, reason);
 
     return NextResponse.json({
       success: true,

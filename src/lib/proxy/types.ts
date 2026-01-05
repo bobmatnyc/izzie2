@@ -181,3 +181,106 @@ export const REQUIRES_CONFIRMATION: ProxyActionClass[] = [
   'post_slack_message',
   'delete_calendar_event',
 ];
+
+/**
+ * Consent change types (POC-4 Phase 2)
+ */
+export type ConsentChangeType = 'granted' | 'modified' | 'revoked' | 'expired';
+
+/**
+ * Consent history query options
+ */
+export interface ConsentHistoryOptions {
+  limit?: number;
+  offset?: number;
+  changeType?: ConsentChangeType;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+/**
+ * Consent dashboard item
+ */
+export interface ConsentDashboardItem {
+  authorization: {
+    id: string;
+    actionClass: ProxyActionClass;
+    actionType: ActionType;
+    scope: AuthorizationScope;
+    grantedAt: Date;
+    expiresAt: Date | null;
+    conditions: AuthorizationConditions | null;
+  };
+  usage: {
+    totalActions: number;
+    lastUsed: Date | null;
+    actionsToday: number;
+    actionsThisWeek: number;
+  };
+  status: 'active' | 'expiring_soon' | 'expired' | 'revoked';
+}
+
+/**
+ * Rollback strategy types
+ */
+export type RollbackStrategy =
+  | 'direct_undo'       // Delete created, restore deleted
+  | 'compensating'      // Reverse transaction
+  | 'manual'            // User-guided rollback
+  | 'not_supported';    // Action cannot be rolled back
+
+/**
+ * Rollback status
+ */
+export type RollbackStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+
+/**
+ * Rollback eligibility check result
+ */
+export interface RollbackEligibility {
+  canRollback: boolean;
+  reason?: string;
+  strategy?: RollbackStrategy;
+  expiresAt?: Date;
+}
+
+/**
+ * Rollback execution params
+ */
+export interface ExecuteRollbackParams {
+  auditEntryId: string;
+  userId: string;
+  reason?: string;
+}
+
+/**
+ * Rollback history query options
+ */
+export interface RollbackHistoryOptions {
+  limit?: number;
+  offset?: number;
+  status?: RollbackStatus;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+/**
+ * Rollback window configuration (hours)
+ */
+export const ROLLBACK_WINDOW_HOURS = 24;
+
+/**
+ * Action class rollback strategies
+ * Defines which rollback strategy applies to each action class
+ */
+export const ACTION_ROLLBACK_STRATEGIES: Record<ProxyActionClass, RollbackStrategy> = {
+  send_email: 'not_supported', // Can't unsend email
+  create_calendar_event: 'direct_undo', // Can delete created event
+  update_calendar_event: 'compensating', // Can restore previous state
+  delete_calendar_event: 'compensating', // Can recreate event
+  create_github_issue: 'direct_undo', // Can close/delete issue
+  update_github_issue: 'compensating', // Can restore previous state
+  post_slack_message: 'not_supported', // Can't delete message (usually)
+  create_task: 'direct_undo', // Can delete task
+  update_task: 'compensating', // Can restore previous state
+};

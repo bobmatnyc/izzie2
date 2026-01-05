@@ -13,10 +13,12 @@ import type {
   AuthorizationScope,
   AuditLogQueryOptions,
 } from './types';
+import { recordConsentGrant, recordConsentRevocation } from './consent-service';
 
 /**
  * Grant a proxy authorization to a user
  * Creates a new authorization record in the database
+ * Records grant in consent history
  *
  * @param params - Authorization parameters
  * @returns The created authorization record
@@ -37,6 +39,9 @@ export async function grantAuthorization(params: GrantAuthorizationParams) {
       metadata: params.metadata,
     })
     .returning();
+
+  // Record in consent history
+  await recordConsentGrant(authorization.id, params.userId, params.grantMethod);
 
   return authorization;
 }
@@ -233,12 +238,18 @@ async function getActionCounts(
 /**
  * Revoke an authorization
  * Soft-deletes by setting revokedAt timestamp
+ * Records revocation in consent history
  *
  * @param authorizationId - Authorization ID to revoke
  * @param userId - User ID (ensures user owns this authorization)
+ * @param reason - Optional reason for revocation
  * @returns The revoked authorization or null if not found
  */
-export async function revokeAuthorization(authorizationId: string, userId: string) {
+export async function revokeAuthorization(
+  authorizationId: string,
+  userId: string,
+  reason?: string
+) {
   const db = dbClient.getDb();
 
   const [revoked] = await db
@@ -251,6 +262,11 @@ export async function revokeAuthorization(authorizationId: string, userId: strin
       )
     )
     .returning();
+
+  // Record in consent history
+  if (revoked) {
+    await recordConsentRevocation(authorizationId, userId, reason);
+  }
 
   return revoked;
 }
