@@ -1,76 +1,43 @@
 /**
  * Process Event Function
- * Routes classified events to appropriate agents
+ * Routes classified events to appropriate agents using dispatcher
  */
 
 import { inngest } from '../index';
-import { SchedulerAgent } from '@/agents/scheduler';
-import { NotifierAgent } from '@/agents/notifier';
 import type { EventProcessedPayload } from '../types';
+import {
+  createDispatcher,
+  getRegistry,
+  createDefaultHandlers,
+  type EventDispatcher,
+} from '@/lib/routing';
+
+// Global dispatcher instance
+let dispatcher: EventDispatcher | null = null;
 
 /**
- * Process a classified event by routing to appropriate agents
+ * Get or create the global dispatcher
  */
-async function routeToAgents(
-  actions: Array<'schedule' | 'notify' | 'ignore'>,
-  webhookId: string,
-  source: string,
-  category: string,
-  payload: unknown
-): Promise<
-  Array<{
-    agent: 'scheduler' | 'notifier';
-    success: boolean;
-    message?: string;
-    error?: string;
-  }>
-> {
-  const results: Array<{
-    agent: 'scheduler' | 'notifier';
-    success: boolean;
-    message?: string;
-    error?: string;
-  }> = [];
+function getDispatcher(): EventDispatcher {
+  if (!dispatcher) {
+    const registry = getRegistry();
 
-  // Process each action
-  for (const action of actions) {
-    if (action === 'ignore') {
-      continue;
-    }
+    // Register default handlers
+    const handlers = createDefaultHandlers();
+    handlers.forEach((handler) => {
+      registry.register(handler.name, handler);
+    });
 
-    try {
-      if (action === 'schedule') {
-        const scheduler = new SchedulerAgent();
-        await scheduler.schedule();
-        results.push({
-          agent: 'scheduler',
-          success: true,
-          message: `Scheduled event ${category} from ${source}`,
-        });
-      } else if (action === 'notify') {
-        const notifier = new NotifierAgent();
-        await notifier.notify();
-        results.push({
-          agent: 'notifier',
-          success: true,
-          message: `Notification sent for ${category} from ${source}`,
-        });
-      }
-    } catch (error) {
-      results.push({
-        agent: action === 'schedule' ? 'scheduler' : 'notifier',
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
+    // Create dispatcher with empty custom rules
+    dispatcher = createDispatcher(registry, []);
   }
 
-  return results;
+  return dispatcher;
 }
 
 /**
  * Inngest function: Process classified events
- * Routes to appropriate agents based on classification
+ * Routes to appropriate agents based on classification using dispatcher
  */
 export const processEvent = inngest.createFunction(
   {
@@ -82,7 +49,7 @@ export const processEvent = inngest.createFunction(
   async ({ event, step, logger }) => {
     const { webhookId, source, timestamp, classification, originalPayload } = event.data;
 
-    logger.info('Starting event processing', {
+    logger.info('Starting event processing with dispatcher', {
       webhookId,
       source,
       category: classification.category,
@@ -92,37 +59,56 @@ export const processEvent = inngest.createFunction(
 
     const startTime = Date.now();
 
-    // Step 1: Route to appropriate agents
-    const results = await step.run('route-to-agents', async () => {
-      logger.info('Routing to agents', {
-        actions: classification.actions,
+    // Step 1: Get routing decision
+    const routingDecision = await step.run('get-routing-decision', async () => {
+      const dispatcher = getDispatcher();
+      const decision = dispatcher.getRoute(event.data);
+
+      logger.info('Routing decision made', {
+        category: decision.category,
+        handler: decision.handler,
+        confidence: decision.confidence,
+        reasoning: decision.reasoning,
+        hasCustomRule: decision.matchedRule !== undefined,
       });
 
-      return await routeToAgents(
-        classification.actions,
-        webhookId,
-        source,
-        classification.category,
-        originalPayload
-      );
+      return decision;
+    });
+
+    // Step 2: Dispatch to handler
+    const dispatchResult = await step.run('dispatch-to-handler', async () => {
+      const dispatcher = getDispatcher();
+      const result = await dispatcher.dispatch(event.data);
+
+      logger.info('Dispatch complete', {
+        success: result.success,
+        handler: result.handler,
+        error: result.error,
+        processingTimeMs: result.processingTimeMs,
+      });
+
+      return result;
     });
 
     const processingTimeMs = Date.now() - startTime;
 
-    logger.info('Event processing complete', {
-      webhookId,
-      results,
-      processingTimeMs,
-    });
-
-    // Step 2: Emit processed event for metrics/logging
+    // Step 3: Emit processed event for metrics/logging
     const processedPayload: EventProcessedPayload = {
       webhookId,
       source,
       timestamp,
       category: classification.category,
       actions: classification.actions,
-      results,
+      results: [
+        {
+          agent: dispatchResult.handler as 'scheduler' | 'notifier',
+          success: dispatchResult.success,
+          message: dispatchResult.success
+            ? `Processed by ${dispatchResult.handler}`
+            : undefined,
+          error: dispatchResult.error,
+        },
+      ],
       processingTimeMs,
     };
 
@@ -131,28 +117,40 @@ export const processEvent = inngest.createFunction(
       data: processedPayload,
     });
 
-    // Step 3: Check if any actions failed
-    const failures = results.filter((r) => !r.success);
-    if (failures.length > 0) {
-      logger.error('Some actions failed', { failures });
+    // Step 4: Handle failures
+    if (!dispatchResult.success) {
+      logger.error('Event processing failed', {
+        handler: dispatchResult.handler,
+        error: dispatchResult.error,
+      });
 
-      // Optionally send notification about failures
+      // Send failure notification
       await step.sendEvent('send-failure-notification', {
         name: 'izzie/notification.send',
         data: {
           webhookId,
           channel: 'telegram',
           recipient: 'admin', // TODO: Get from config
-          message: `⚠️ Event processing partially failed for ${source} webhook ${webhookId}\n\nCategory: ${classification.category}\nFailed actions: ${failures.map((f) => `${f.agent}: ${f.error}`).join(', ')}`,
+          message: `⚠️ Event processing failed for ${source} webhook ${webhookId}\n\nCategory: ${classification.category}\nHandler: ${dispatchResult.handler}\nError: ${dispatchResult.error}`,
           priority: 'high',
         },
       });
     }
 
-    return {
-      success: failures.length === 0,
+    logger.info('Event processing complete', {
       webhookId,
-      results,
+      success: dispatchResult.success,
+      handler: dispatchResult.handler,
+      routingReasoning: routingDecision.reasoning,
+      processingTimeMs,
+    });
+
+    return {
+      success: dispatchResult.success,
+      webhookId,
+      handler: dispatchResult.handler,
+      category: dispatchResult.category,
+      routingDecision,
       processingTimeMs,
     };
   }
