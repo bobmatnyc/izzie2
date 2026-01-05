@@ -5,9 +5,9 @@
 
 export const BUILD_INFO = {
   version: '1.0.0',
-  gitHash: '473d202',
-  gitBranch: 'chore/optimize-mpm-configuration',
-  buildTime: '2026-01-05T18:32:42Z',
+  gitHash: '17526b8',
+  gitBranch: 'main',
+  buildTime: '2026-01-05T18:45:22Z',
   nodeVersion: 'v25.2.1',
   isDirty: true,
 } as const;
