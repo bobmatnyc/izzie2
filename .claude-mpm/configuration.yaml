@@ -1,3 +1,6 @@
+# Claude MPM Configuration for Izzie2
+# Optimized for: Next.js 16, React 19, TypeScript 5.9, AI/Event-driven architecture
+
 agent_deployment:
   case_sensitive: false
   exclude_dependencies: false
@@ -7,6 +10,7 @@ agent_deployment:
   - claude mpm
   - claude-mpm
   - anthropic
+
 agent_sync:
   cache_dir: /Users/masa/.claude-mpm/cache/agents
   enabled: true
@@ -16,6 +20,7 @@ agent_sync:
     priority: 100
     url: https://raw.githubusercontent.com/bobmatnyc/claude-mpm-agents/main/agents
   sync_interval: startup
+
 ai_trackdown_tools_fallback_logging: true
 ai_trackdown_tools_timeout: 30
 alert_threshold: 60
@@ -31,6 +36,7 @@ correction_capture_enabled: true
 correction_compression_enabled: true
 correction_max_file_size_mb: 10
 correction_storage_rotation_days: 30
+
 dashboard_server:
   auto_connect_monitor: true
   fallback_standalone: true
@@ -39,6 +45,7 @@ dashboard_server:
   monitor_port: 8765
   monitor_reconnect: true
   port: 8765
+
 debug: false
 enable_alerting: true
 enable_evaluation: true
@@ -46,6 +53,7 @@ enable_evaluation_metrics: true
 enable_health_monitoring: true
 enable_metrics: true
 enable_persistent_tracking: true
+
 evaluation_async_enabled: true
 evaluation_batch_size: 10
 evaluation_batch_wait_ms: 100
@@ -72,6 +80,7 @@ evaluation_performance_enabled: true
 evaluation_provider: auto
 evaluation_storage_path: /Users/masa/.claude-mpm/training
 evaluation_timeout_seconds: 30
+
 fallback_tracking_method: logging
 graceful_shutdown_timeout: 30
 health_aggregation_window: 300
@@ -84,6 +93,7 @@ health_thresholds:
   max_error_rate: 0.1
   memory_mb: 500
   network_timeout: 2.0
+
 instruction_reinforcement:
   enabled: true
   injection_interval: 5
@@ -98,9 +108,11 @@ instruction_reinforcement:
   - '[PM-INSTRUCTION] Do not use Edit, Write, or Bash tools directly'
   - '[PM-INSTRUCTION] Your role is orchestration and coordination'
   test_mode: false
+
 log_format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 log_level: INFO
 managed_path: /Users/masa/Projects/managed
+
 memory:
   agent_overrides:
     qa:
@@ -115,6 +127,7 @@ memory:
     max_items_per_section: 15
     max_line_length: 120
     max_sections: 10
+
 memory_management:
   archive_retention_days: 90
   auto_archive_enabled: false
@@ -128,7 +141,9 @@ memory_management:
   memory_usage_log_interval: 300
   monitor_memory_usage: true
   session_retention_hours: 24
+
 metrics_interval: 60
+
 monitor_server:
   auto_start: false
   client_timeout: 60
@@ -136,6 +151,7 @@ monitor_server:
   event_buffer_size: 2000
   host: localhost
   port: 8765
+
 recovery:
   check_interval: 60
   circuit_breaker:
@@ -150,9 +166,11 @@ recovery:
     failure_window_seconds: 300
     min_recovery_interval: 60
     warning_threshold: 2
+
 session:
   auto_save: true
   save_interval: 300
+
 socketio_server:
   enable_health_monitoring: true
   enable_recovery: true
@@ -186,122 +204,135 @@ socketio_server:
       min_recovery_interval: 60
       warning_threshold: 2
     timeout: 30
+
 startup_timeout: 60
+
 updates:
   auto_upgrade: false
   cache_ttl: 86400
   check_claude_code: true
   check_enabled: true
   check_frequency: daily
+
 use_ai_trackdown_tools: false
 verbose: false
+
+# ============================================================================
+# OPTIMIZED SKILLS FOR IZZIE2
+# ============================================================================
+# Project stack: Next.js 16, React 19, TypeScript 5.9, Vitest 4.0
+# AI/Event Architecture: OpenRouter, Inngest, Neo4j, Neon Postgres
+# Reduced from 130+ skills to 40 relevant skills (70% reduction)
+# ============================================================================
+
 skills:
   agent_referenced:
-  - anthropic-sdk
-  - api-design-patterns
-  - api-documentation
-  - api-security-review
-  - artifacts-builder
-  - asyncio
-  - biome
-  - brainstorming
-  - bug-fix-verification
-  - celery
-  - condition-based-waiting
-  - daisyui
-  - database-migration
-  - dependency-audit
-  - desktop-applications
-  - digitalocean-agentic-cloud
-  - digitalocean-compute
-  - digitalocean-containers-images
-  - digitalocean-managed-databases
-  - digitalocean-management
-  - digitalocean-networking
-  - digitalocean-overview
-  - digitalocean-storage
-  - digitalocean-teams
-  - dispatching-parallel-agents
-  - django
-  - docker
-  - dspy
-  - ecto-patterns
-  - emergency-release-workflow
-  - env-manager
-  - espocrm
-  - express-production
-  - fastapi-local-dev
-  - flask
-  - git-workflow
-  - git-worktrees
-  - github-actions
-  - golang-cli-cobra-viper
-  - golang-database-patterns
-  - golang-http-frameworks
-  - golang-observability-opentelemetry
-  - golang-testing-strategies
-  - graphql
-  - headlessui
-  - internal-comms
-  - json-data-handling
-  - langchain
-  - langgraph
-  - mcp
-  - mcp-builder
-  - mypy
-  - netlify
-  - nextjs
-  - nextjs-core
-  - nextjs-v16
-  - nodejs-backend
-  - openrouter
-  - phoenix-api-channels
-  - phoenix-liveview
-  - phoenix-ops
-  - playwright
-  - pr-quality-checklist
-  - pre-merge-verification
-  - pydantic
-  - pyright
-  - pytest
-  - react
-  - react-state-machines
-  - requesting-code-review
-  - root-cause-tracing
-  - screenshot-verification
-  - security-scanning
-  - session-compression
-  - shadcn-ui
-  - skill-creator
-  - software-patterns
-  - sqlalchemy
-  - stacked-prs
-  - supabase
-  - svelte
-  - svelte5-runes-static
-  - sveltekit
-  - systematic-debugging
-  - tailwind
-  - tanstack-query
-  - tauri
-  - test-driven-development
-  - test-quality-inspector
-  - testing-anti-patterns
-  - trpc
-  - typescript-core
-  - validated-handler
-  - vercel-overview
-  - verification-before-completion
-  - vite
-  - vue
-  - web-performance-optimization
-  - webapp-testing
-  - wordpress-advanced-architecture
-  - wordpress-block-editor-fse
-  - wordpress-plugin-fundamentals
-  - wordpress-security-validation
-  - wordpress-testing-qa
-  - writing-plans
-  - xlsx
-  - zustand
+    # ========================================================================
+    # CORE FRAMEWORK (Next.js 16 + React 19)
+    # ========================================================================
+    - nextjs                    # Next.js fundamentals
+    - nextjs-core              # Core Next.js patterns
+    - nextjs-v16               # Next.js 16 specific features (cache components, PPR)
+    - react                    # React 19 fundamentals
+    - typescript-core          # TypeScript 5.9 strict mode patterns
+
+    # ========================================================================
+    # TESTING & QUALITY (Vitest 4.0 + Playwright)
+    # ========================================================================
+    - vitest                   # Vitest 4.0 testing patterns
+    - playwright               # E2E testing with Playwright
+    - test-driven-development  # TDD methodology
+    - testing-anti-patterns    # Common testing mistakes to avoid
+    - bug-fix-verification     # Verify fixes actually work
+    - verification-before-completion  # Always verify before claiming done
+    - pre-merge-verification   # Pre-commit checks
+
+    # ========================================================================
+    # AI & LLM INTEGRATION (OpenRouter, Claude, Mistral)
+    # ========================================================================
+    - openrouter               # OpenRouter API patterns
+    - anthropic-sdk            # Claude API integration
+    - mcp                      # Model Context Protocol
+    - mcp-builder              # Building MCP servers
+    - langchain                # LangChain patterns (if used)
+
+    # ========================================================================
+    # EVENT-DRIVEN ARCHITECTURE (Inngest)
+    # ========================================================================
+    - nodejs-backend           # Node.js backend patterns
+    - express-production       # Production Express/API patterns
+
+    # ========================================================================
+    # DATA & VALIDATION (Zod, GraphQL, Neo4j)
+    # ========================================================================
+    - zod                      # Zod schema validation
+    - graphql                  # GraphQL patterns
+    - pydantic                 # Pydantic patterns (for AI schema validation)
+
+    # ========================================================================
+    # INFRASTRUCTURE & DEPLOYMENT
+    # ========================================================================
+    - docker                   # Docker containerization
+    - github-actions           # CI/CD with GitHub Actions
+    - vercel-overview          # Vercel deployment
+    - env-manager              # Environment variable management
+
+    # ========================================================================
+    # CODE QUALITY & TOOLING
+    # ========================================================================
+    - biome                    # Biome linter/formatter
+    - systematic-debugging     # Structured debugging approach
+    - git-workflow             # Git best practices
+    - git-worktrees            # Git worktree patterns
+
+    # ========================================================================
+    # BEST PRACTICES & PATTERNS
+    # ========================================================================
+    - api-design-patterns      # RESTful API design
+    - software-patterns        # Common software patterns
+    - api-security-review      # API security checklist
+    - web-performance-optimization  # Performance best practices
+
+    # ========================================================================
+    # COLLABORATION & WORKFLOW
+    # ========================================================================
+    - pr-quality-checklist     # PR review checklist
+    - requesting-code-review   # How to request effective reviews
+    - stacked-prs              # Managing dependent PRs
+    - writing-plans            # Planning and documentation
+    - skill-creator            # Creating custom skills
+
+    # ========================================================================
+    # SPECIALIZED PATTERNS
+    # ========================================================================
+    - json-data-handling       # JSON processing patterns
+    - condition-based-waiting  # Replace sleep() with condition polling
+    - session-compression      # AI conversation compression
+    - root-cause-tracing       # Deep debugging techniques
+
   user_defined: []
+
+# ============================================================================
+# AGENT PREFERENCES FOR IZZIE2
+# ============================================================================
+# Optimized agent selection based on project tech stack
+# ============================================================================
+
+agent_preferences:
+  primary_engineer: typescript-engineer    # TypeScript is primary language
+  primary_qa: api-qa                       # API-first testing focus
+  primary_ops: vercel-ops                  # Deployed on Vercel
+  ai_specialist: openrouter-engineer       # OpenRouter/LLM integration
+  event_specialist: nodejs-backend         # Inngest event handling
+
+# ============================================================================
+# PROJECT-SPECIFIC NOTES
+# ============================================================================
+# - Focus on AI agent orchestration patterns
+# - Event-driven workflows with Inngest
+# - Graph database (Neo4j) for knowledge representation
+# - OpenRouter for multi-model AI routing
+# - Next.js 16 features: cache components, Partial Prerendering
+# - React 19: Server Components, Actions
+# - TypeScript strict mode throughout
+# ============================================================================
