@@ -5,9 +5,9 @@
 
 export const BUILD_INFO = {
   version: '1.0.0',
-  gitHash: '1515379',
-  gitBranch: 'feature/poc-1-project-setup',
-  buildTime: '2026-01-05T18:17:26Z',
+  gitHash: '0cbfb99',
+  gitBranch: 'feat/semantic-versioning',
+  buildTime: '2026-01-05T18:23:10Z',
   nodeVersion: 'v25.2.1',
   isDirty: true,
 } as const;
