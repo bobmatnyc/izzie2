@@ -49,6 +49,7 @@
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "better-auth": "^1.4.10",
     "drizzle-orm": "^0.45.1",
     "googleapis": "^169.0.0",
     "inngest": "^3.48.1",

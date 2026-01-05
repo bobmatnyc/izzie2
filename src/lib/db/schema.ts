@@ -141,6 +141,84 @@ export const memoryEntries = pgTable(
 );
 
 /**
+ * Better Auth tables for authentication
+ */
+
+/**
+ * Sessions table - stores user sessions
+ * Used by Better Auth for session management
+ */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    token: text('token').notNull().unique(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('sessions_user_id_idx').on(table.userId),
+    tokenIdx: index('sessions_token_idx').on(table.token),
+    expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
+  })
+);
+
+/**
+ * Accounts table - stores OAuth provider accounts
+ * Links users to their OAuth providers (Google, etc.)
+ */
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    accountId: text('account_id').notNull(), // Provider's user ID
+    providerId: text('provider_id').notNull(), // e.g., 'google'
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    expiresAt: timestamp('expires_at'),
+    scope: text('scope'),
+    password: text('password'), // For email/password auth
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('accounts_user_id_idx').on(table.userId),
+    providerIdx: index('accounts_provider_idx').on(
+      table.providerId,
+      table.accountId
+    ),
+  })
+);
+
+/**
+ * Verifications table - stores email verification tokens
+ * Used for email verification and password reset flows
+ */
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    identifier: text('identifier').notNull(), // Email or phone
+    value: text('value').notNull(), // Verification token
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    identifierIdx: index('verifications_identifier_idx').on(table.identifier),
+  })
+);
+
+/**
  * Type exports for TypeScript
  */
 export type User = typeof users.$inferSelect;
@@ -151,3 +229,12 @@ export type NewConversation = typeof conversations.$inferInsert;
 
 export type MemoryEntry = typeof memoryEntries.$inferSelect;
 export type NewMemoryEntry = typeof memoryEntries.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+
+export type Account = typeof accounts.$inferSelect;
+export type NewAccount = typeof accounts.$inferInsert;
+
+export type Verification = typeof verifications.$inferSelect;
+export type NewVerification = typeof verifications.$inferInsert;
