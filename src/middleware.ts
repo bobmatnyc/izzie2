@@ -10,7 +10,7 @@ import { auth } from '@/lib/auth';
  * Protected route patterns
  * Add any routes that require authentication
  */
-const PROTECTED_ROUTES = ['/dashboard', '/calendar', '/profile'];
+const PROTECTED_ROUTES = ['/dashboard', '/calendar', '/profile', '/admin'];
 
 /**
  * Public routes that should not be protected
