@@ -13,7 +13,14 @@
     "lint": "next lint",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:cov": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "repository": {
     "type": "git",
@@ -40,10 +47,16 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
     "@typescript-eslint/eslint-plugin": "^8.51.0",
     "@typescript-eslint/parser": "^8.51.0",
+    "@vitest/ui": "^4.0.16",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.1.1",
-    "prettier": "^3.7.4"
+    "happy-dom": "^20.0.11",
+    "jsdom": "^27.4.0",
+    "prettier": "^3.7.4",
+    "vitest": "^4.0.16"
   }
 }
