@@ -238,3 +238,178 @@ export type NewAccount = typeof accounts.$inferInsert;
 
 export type Verification = typeof verifications.$inferSelect;
 export type NewVerification = typeof verifications.$inferInsert;
+
+/**
+ * Proxy Authorization tables for POC-4
+ */
+
+/**
+ * Proxy authorizations - user consent for AI to act on their behalf
+ */
+export const proxyAuthorizations = pgTable(
+  'proxy_authorizations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+
+    // Action classification
+    actionClass: text('action_class').notNull(), // 'send_email', 'create_calendar_event', etc.
+    actionType: text('action_type').notNull(), // 'email', 'calendar', 'github', 'slack', etc.
+
+    // Authorization scope
+    scope: text('scope').notNull(), // 'single', 'session', 'standing', 'conditional'
+
+    // Time constraints
+    grantedAt: timestamp('granted_at').defaultNow().notNull(),
+    expiresAt: timestamp('expires_at'), // NULL = no expiration (standing auth)
+    revokedAt: timestamp('revoked_at'), // User can revoke
+
+    // Conditions (stored as JSONB for flexibility)
+    conditions: jsonb('conditions').$type<{
+      maxActionsPerDay?: number;
+      maxActionsPerWeek?: number;
+      allowedHours?: { start: number; end: number }; // 9-17 = business hours
+      requireConfidenceThreshold?: number; // 0.0-1.0
+      allowedRecipients?: string[]; // Email whitelist
+      allowedCalendars?: string[]; // Calendar IDs
+    }>(),
+
+    // Metadata
+    grantMethod: text('grant_method').notNull(), // 'explicit_consent', 'implicit_learning', 'bulk_grant'
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+
+    // Timestamps
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('proxy_authorizations_user_id_idx').on(table.userId),
+    actionClassIdx: index('proxy_authorizations_action_class_idx').on(table.actionClass),
+    scopeIdx: index('proxy_authorizations_scope_idx').on(table.scope),
+    activeAuthIdx: index('proxy_authorizations_active_idx').on(
+      table.userId,
+      table.actionClass,
+      table.revokedAt // NULL = active
+    ),
+  })
+);
+
+/**
+ * Proxy audit log - tracks all proxy actions
+ */
+export const proxyAuditLog = pgTable(
+  'proxy_audit_log',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+
+    // Who and what
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    authorizationId: uuid('authorization_id')
+      .references(() => proxyAuthorizations.id, { onDelete: 'set null' }),
+
+    // Action details
+    action: text('action').notNull(), // 'send_email', 'create_event', etc.
+    actionClass: text('action_class').notNull(),
+    mode: text('mode').notNull(), // 'assistant' or 'proxy'
+    persona: text('persona').notNull(), // 'work' or 'personal'
+
+    // Input/output
+    input: jsonb('input').$type<Record<string, unknown>>(),
+    output: jsonb('output').$type<Record<string, unknown>>(),
+
+    // AI model details
+    modelUsed: text('model_used'),
+    confidence: integer('confidence'), // 0-100 (stored as percentage)
+    tokensUsed: integer('tokens_used'),
+    latencyMs: integer('latency_ms'),
+
+    // Result
+    success: boolean('success').notNull(),
+    error: text('error'),
+
+    // User confirmation (for high-risk actions)
+    userConfirmed: boolean('user_confirmed').default(false),
+    confirmedAt: timestamp('confirmed_at'),
+
+    // Timestamp
+    timestamp: timestamp('timestamp').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('proxy_audit_log_user_id_idx').on(table.userId),
+    actionIdx: index('proxy_audit_log_action_idx').on(table.action),
+    timestampIdx: index('proxy_audit_log_timestamp_idx').on(table.timestamp),
+    successIdx: index('proxy_audit_log_success_idx').on(table.success),
+  })
+);
+
+/**
+ * Authorization templates - pre-defined auth bundles
+ */
+export const authorizationTemplates = pgTable(
+  'authorization_templates',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull().unique(), // 'work_assistant', 'personal_basic', etc.
+    description: text('description'),
+
+    // Bundled authorizations
+    authorizations: jsonb('authorizations').$type<
+      Array<{
+        actionClass: string;
+        scope: 'single' | 'session' | 'standing' | 'conditional';
+        conditions?: Record<string, unknown>;
+      }>
+    >(),
+
+    // Template metadata
+    isDefault: boolean('is_default').default(false),
+    isActive: boolean('is_active').default(true),
+
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  }
+);
+
+/**
+ * User authorization preferences - which templates are active
+ */
+export const userAuthorizationPreferences = pgTable(
+  'user_authorization_preferences',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    templateId: uuid('template_id')
+      .references(() => authorizationTemplates.id, { onDelete: 'cascade' })
+      .notNull(),
+
+    isActive: boolean('is_active').default(true),
+    activatedAt: timestamp('activated_at').defaultNow().notNull(),
+    deactivatedAt: timestamp('deactivated_at'),
+  },
+  (table) => ({
+    userIdIdx: index('user_auth_prefs_user_id_idx').on(table.userId),
+    templateIdIdx: index('user_auth_prefs_template_id_idx').on(table.templateId),
+    userTemplateUnique: index('user_auth_prefs_unique').on(table.userId, table.templateId),
+  })
+);
+
+/**
+ * Type exports for proxy authorization
+ */
+export type ProxyAuthorization = typeof proxyAuthorizations.$inferSelect;
+export type NewProxyAuthorization = typeof proxyAuthorizations.$inferInsert;
+
+export type ProxyAuditEntry = typeof proxyAuditLog.$inferSelect;
+export type NewProxyAuditEntry = typeof proxyAuditLog.$inferInsert;
+
+export type AuthorizationTemplate = typeof authorizationTemplates.$inferSelect;
+export type NewAuthorizationTemplate = typeof authorizationTemplates.$inferInsert;
+
+export type UserAuthorizationPreference = typeof userAuthorizationPreferences.$inferSelect;
+export type NewUserAuthorizationPreference = typeof userAuthorizationPreferences.$inferInsert;
