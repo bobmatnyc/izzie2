@@ -4,16 +4,13 @@
  */
 
 import { Inngest } from 'inngest';
+import type { Events } from './types';
 
 export const inngest = new Inngest({
   id: 'izzie2',
+  name: 'Izzie2 AI Assistant',
   eventKey: process.env.INNGEST_EVENT_KEY,
 });
 
-// Event type definitions
-export type InngestEvents = {
-  'github/event': { data: { action: string; payload: unknown } };
-  'linear/event': { data: { action: string; payload: unknown } };
-  'google/calendar': { data: { action: string; payload: unknown } };
-  'telegram/message': { data: { chatId: string; message: string } };
-};
+// Re-export types for convenience
+export type { Events } from './types';
