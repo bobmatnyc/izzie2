@@ -38,3 +38,11 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# MCP Vector Search index directory
+.mcp-vector-search/
+
+# Memory databases
+.kuzu-memory/
+.kuzu-memory-backups/
+kuzu-memories/

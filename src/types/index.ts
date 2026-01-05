@@ -32,6 +32,60 @@ export interface AIResponse {
   };
 }
 
+// Chat Message types
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatOptions {
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+  logCost?: boolean;
+  extra?: Record<string, unknown>;
+}
+
+export interface ChatUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cost: number;
+}
+
+export interface ChatResponse {
+  content: string;
+  model: string;
+  usage: ChatUsage;
+  finishReason: string;
+}
+
+export interface StreamChatResponse {
+  delta: string;
+  content: string;
+  model: string;
+  done: boolean;
+}
+
+// Classification types
+export interface ClassificationResult {
+  category: string;
+  confidence: number;
+  allCategories: string[];
+  model: string;
+  cost: number;
+}
+
+// Usage tracking
+export interface UsageStats {
+  model: string;
+  requestCount: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+  totalCost: number;
+}
+
 // Memory types
 export interface MemoryEntry {
   id: string;

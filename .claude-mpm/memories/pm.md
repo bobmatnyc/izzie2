@@ -11,3 +11,7 @@
 - Track sub-issue progress on parent epics
 - User prefers roadmap and board views for project tracking
 - Keep project status continuously updated with PR links for user visibility
+
+## Tech Stack Decision
+- Use Hono web framework for API routes when implementing web layer
+- Hono skills are available in the system for reference
