@@ -43,7 +43,7 @@ export async function getServiceAccountAuth(
     keyFile: resolvedPath,
     scopes: SCOPES,
     // If userEmail provided, impersonate that user (requires domain-wide delegation)
-    ...(userEmail && { subject: userEmail }),
+    ...(userEmail && { clientOptions: { subject: userEmail } }),
   });
 
   return auth;
