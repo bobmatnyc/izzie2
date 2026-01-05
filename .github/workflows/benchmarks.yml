@@ -1,0 +1,154 @@
+name: Performance Benchmarks
+
+on:
+  # Run daily at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Benchmark suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - vector
+          - graph
+          - hybrid
+      iterations:
+        description: 'Number of iterations'
+        required: false
+        default: '10'
+      scale:
+        description: 'Dataset scale'
+        required: false
+        default: 'small'
+        type: choice
+        options:
+          - small
+          - medium
+          - large
+
+  # Run on pull requests that modify benchmark or retrieval code
+  pull_request:
+    paths:
+      - 'src/benchmarks/**'
+      - 'src/lib/retrieval/**'
+      - 'src/lib/db/vectors.ts'
+      - 'src/lib/graph/**'
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run type check
+        run: npm run type-check
+
+      - name: Run benchmarks
+        run: |
+          SUITE="${{ github.event.inputs.suite || 'all' }}"
+          npm run benchmark $SUITE
+        env:
+          BENCHMARK_ITERATIONS: ${{ github.event.inputs.iterations || '10' }}
+          BENCHMARK_SCALE: ${{ github.event.inputs.scale || 'small' }}
+          BENCHMARK_OUTPUT_DIR: ./benchmark-results
+          DATABASE_URL: ${{ secrets.BENCHMARK_DATABASE_URL }}
+          NEO4J_URI: ${{ secrets.BENCHMARK_NEO4J_URI }}
+          NEO4J_USER: neo4j
+          NEO4J_PASSWORD: ${{ secrets.BENCHMARK_NEO4J_PASSWORD }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NODE_ENV: production
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.run_number }}
+          path: benchmark-results/
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './benchmark-results/benchmark-latest.md';
+
+            if (fs.existsSync(path)) {
+              const content = fs.readFileSync(path, 'utf8');
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 📊 Benchmark Results\n\n${content}`
+              });
+            }
+
+      - name: Check benchmark targets
+        if: github.event_name == 'pull_request'
+        run: |
+          # Exit with error code if benchmarks failed targets
+          # This is already handled by the benchmark script exit code
+          echo "Benchmark targets checked"
+
+  performance-regression:
+    name: Check Performance Regression
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Download current results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-${{ github.run_number }}
+          path: ./current-results
+
+      - name: Download baseline results
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: benchmarks.yml
+          branch: main
+          name: benchmark-results-*
+          path: ./baseline-results
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Compare results
+        run: |
+          echo "Performance regression check"
+          echo "TODO: Implement comparison logic"
+          # Compare current-results/benchmark-latest.json with baseline-results/benchmark-latest.json
+          # Fail if P95 latency increased by >10%
+
+      - name: Post regression warning
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Performance Regression Detected**\n\nBenchmark results show performance degradation compared to baseline. Please review the changes.'
+            });

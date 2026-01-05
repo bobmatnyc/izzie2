@@ -12,8 +12,8 @@ import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

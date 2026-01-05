@@ -30,7 +30,11 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx drizzle/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "benchmark": "tsx src/benchmarks/run-benchmarks.ts",
+    "benchmark:vector": "tsx src/benchmarks/run-benchmarks.ts vector",
+    "benchmark:graph": "tsx src/benchmarks/run-benchmarks.ts graph",
+    "benchmark:hybrid": "tsx src/benchmarks/run-benchmarks.ts hybrid"
   },
   "repository": {
     "type": "git",

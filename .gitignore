@@ -49,3 +49,8 @@ next-env.d.ts
 .kuzu-memory/
 .kuzu-memory-backups/
 kuzu-memories/
+
+# Benchmark results
+benchmark-results/
+*.benchmark.json
+*.benchmark.md
