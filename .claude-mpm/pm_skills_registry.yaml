@@ -1,0 +1,27 @@
+deployed_at: '2026-01-05T13:31:15.581491+00:00'
+skills:
+- checksum: 91d172cb94ffef4bf0e57a467b1957af5f15750588143e7d03ca4b9a67168950
+  deployed_at: '2026-01-05T13:31:15.581491+00:00'
+  name: pm-delegation-patterns
+  version: 1.0.0
+- checksum: 1d2795c70ff39c7aa23c0f798291e73ca6af3644a048b4cab95687a95f7be80a
+  deployed_at: '2026-01-05T13:31:15.581491+00:00'
+  name: pm-pr-workflow
+  version: 1.0.0
+- checksum: 44e4dc4ffb695f31c8962fb5053d05486cccc9c53b73b19589fe1e13df25af60
+  deployed_at: '2026-01-05T13:31:15.581491+00:00'
+  name: pm-verification-protocols
+  version: 1.0.0
+- checksum: 6cf419b8cced7a74b98c41e27658b0cd850b0261fe2fbda2038fec1f6f0ed565
+  deployed_at: '2026-01-05T13:31:15.581491+00:00'
+  name: pm-ticketing-integration
+  version: 1.0.0
+- checksum: 6e798ef56ce87b401827bdb22813bf16ab71b1f8c89188541e5a2c3d1ad88133
+  deployed_at: '2026-01-05T13:31:15.581491+00:00'
+  name: pm-git-file-tracking
+  version: 1.0.0
+- checksum: 9c6cb2c459538b7a3e8b03d3a4dff9016357cc4f1edbbafe76b82a01ea9e2683
+  deployed_at: '2026-01-05T13:31:15.581491+00:00'
+  name: pm-teaching-mode
+  version: 1.0.0
+version: 1.0.0
