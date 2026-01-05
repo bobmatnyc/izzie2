@@ -77,6 +77,20 @@ export const NotificationSendSchema = z.object({
 export type NotificationSendPayload = z.infer<typeof NotificationSendSchema>;
 
 /**
+ * Scheduling request event schema
+ * Triggers scheduler agent to process scheduling request
+ */
+export const SchedulingRequestSchema = z.object({
+  userId: z.string(),
+  requestId: z.string(),
+  naturalLanguage: z.string().optional(),
+  structuredRequest: z.unknown().optional(), // Will be validated by scheduler agent
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type SchedulingRequestPayload = z.infer<typeof SchedulingRequestSchema>;
+
+/**
  * Inngest Events Type Definition
  * Maps event names to their data payloads
  */
@@ -93,6 +107,9 @@ export type Events = {
   'izzie/notification.send': {
     data: NotificationSendPayload;
   };
+  'izzie/scheduling.request': {
+    data: SchedulingRequestPayload;
+  };
 };
 
 /**
@@ -107,6 +124,7 @@ export function validateEventData<T extends keyof Events>(
     'izzie/event.classified': EventClassifiedSchema,
     'izzie/event.processed': EventProcessedSchema,
     'izzie/notification.send': NotificationSendSchema,
+    'izzie/scheduling.request': SchedulingRequestSchema,
   };
 
   const schema = schemas[eventName];

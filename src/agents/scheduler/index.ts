@@ -3,13 +3,10 @@
  * Manages calendar and scheduling operations
  */
 
-export class SchedulerAgent {
-  constructor() {
-    // Placeholder for future implementation
-  }
+export * from './types';
+export * from './intent-parser';
+export * from './scheduler';
 
-  async schedule(): Promise<void> {
-    // TODO: Implement calendar integration
-    console.warn('SchedulerAgent.schedule not yet implemented');
-  }
-}
+// Re-export main functions
+export { getScheduler, SchedulerAgent } from './scheduler';
+export { parseIntent, resolveParticipants, parseTimeReference } from './intent-parser';
