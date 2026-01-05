@@ -6,3 +6,4 @@
 export * from './types.js';
 export * from './auth.js';
 export * from './gmail.js';
+export * from './drive.js';

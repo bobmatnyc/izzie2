@@ -67,3 +67,95 @@ export interface RateLimitInfo {
   resetAt: Date;
   limit: number;
 }
+
+/**
+ * Google Drive API Type Definitions
+ */
+
+export interface DriveUser {
+  displayName: string;
+  emailAddress: string;
+  photoLink?: string;
+  permissionId?: string;
+}
+
+export interface DrivePermission {
+  id: string;
+  type: 'user' | 'group' | 'domain' | 'anyone';
+  role: 'owner' | 'organizer' | 'fileOrganizer' | 'writer' | 'commenter' | 'reader';
+  emailAddress?: string;
+  displayName?: string;
+  deleted?: boolean;
+}
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: number;
+  createdTime: Date;
+  modifiedTime: Date;
+  owners: DriveUser[];
+  permissions?: DrivePermission[];
+  parents?: string[];
+  webViewLink?: string;
+  webContentLink?: string;
+  thumbnailLink?: string;
+  iconLink?: string;
+  description?: string;
+  starred?: boolean;
+  trashed?: boolean;
+  shared?: boolean;
+  capabilities?: {
+    canEdit?: boolean;
+    canComment?: boolean;
+    canShare?: boolean;
+    canCopy?: boolean;
+    canDownload?: boolean;
+  };
+}
+
+export interface DriveListOptions {
+  query?: string; // Drive query syntax (e.g., "name contains 'report'")
+  maxResults?: number;
+  pageToken?: string;
+  orderBy?: string; // e.g., "modifiedTime desc", "name"
+  spaces?: 'drive' | 'appDataFolder' | 'photos';
+  fields?: string; // Specific fields to return
+  includeItemsFromAllDrives?: boolean;
+  supportsAllDrives?: boolean;
+}
+
+export interface DriveSearchOptions {
+  query: string;
+  maxResults?: number;
+  orderBy?: string;
+  includeSharedDrives?: boolean;
+}
+
+export interface DriveFileBatch {
+  files: DriveFile[];
+  nextPageToken?: string;
+  incompleteSearch?: boolean;
+}
+
+export interface DriveFileContent {
+  file: DriveFile;
+  content: Buffer | string;
+  mimeType: string;
+  encoding?: string;
+}
+
+export interface DriveChangeToken {
+  token: string;
+  expiration?: Date;
+}
+
+export interface DriveChange {
+  changeType: 'file' | 'drive';
+  time: Date;
+  removed?: boolean;
+  file?: DriveFile;
+  fileId: string;
+  changeId?: string;
+}
