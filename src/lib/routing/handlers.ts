@@ -7,6 +7,7 @@ import type { EventHandler, HandlerResult, ClassifiedEvent } from './types';
 import { SchedulerAgent } from '@/agents/scheduler';
 import { NotifierAgent } from '@/agents/notifier';
 import { OrchestratorAgent } from '@/agents/orchestrator';
+import { logger } from '@/lib/metrics';
 
 /**
  * Scheduler handler wrapper
@@ -16,8 +17,26 @@ export class SchedulerHandler implements EventHandler {
   private agent = new SchedulerAgent();
 
   async handle(event: ClassifiedEvent): Promise<HandlerResult> {
+    const startTime = Date.now();
+
     try {
       await this.agent.schedule();
+
+      const latencyMs = Date.now() - startTime;
+
+      // Emit dispatch metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'dispatch',
+        latencyMs,
+        success: true,
+        metadata: {
+          handler: this.name,
+          webhookId: event.webhookId,
+          source: event.source,
+          category: event.classification.category,
+        },
+      });
 
       return {
         success: true,
@@ -28,6 +47,23 @@ export class SchedulerHandler implements EventHandler {
         },
       };
     } catch (error) {
+      const latencyMs = Date.now() - startTime;
+
+      // Emit dispatch failure metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'dispatch',
+        latencyMs,
+        success: false,
+        metadata: {
+          handler: this.name,
+          webhookId: event.webhookId,
+          source: event.source,
+          category: event.classification.category,
+          error: error instanceof Error ? error.message : 'Scheduler error',
+        },
+      });
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Scheduler error',
@@ -44,8 +80,26 @@ export class NotifierHandler implements EventHandler {
   private agent = new NotifierAgent();
 
   async handle(event: ClassifiedEvent): Promise<HandlerResult> {
+    const startTime = Date.now();
+
     try {
       await this.agent.notify();
+
+      const latencyMs = Date.now() - startTime;
+
+      // Emit dispatch metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'dispatch',
+        latencyMs,
+        success: true,
+        metadata: {
+          handler: this.name,
+          webhookId: event.webhookId,
+          source: event.source,
+          category: event.classification.category,
+        },
+      });
 
       return {
         success: true,
@@ -56,6 +110,23 @@ export class NotifierHandler implements EventHandler {
         },
       };
     } catch (error) {
+      const latencyMs = Date.now() - startTime;
+
+      // Emit dispatch failure metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'dispatch',
+        latencyMs,
+        success: false,
+        metadata: {
+          handler: this.name,
+          webhookId: event.webhookId,
+          source: event.source,
+          category: event.classification.category,
+          error: error instanceof Error ? error.message : 'Notifier error',
+        },
+      });
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Notifier error',
@@ -72,6 +143,8 @@ export class OrchestratorHandler implements EventHandler {
   private agent = new OrchestratorAgent();
 
   async handle(event: ClassifiedEvent): Promise<HandlerResult> {
+    const startTime = Date.now();
+
     try {
       // Create agent context from event
       const context = {
@@ -82,6 +155,22 @@ export class OrchestratorHandler implements EventHandler {
 
       await this.agent.process(context);
 
+      const latencyMs = Date.now() - startTime;
+
+      // Emit dispatch metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'dispatch',
+        latencyMs,
+        success: true,
+        metadata: {
+          handler: this.name,
+          webhookId: event.webhookId,
+          source: event.source,
+          category: event.classification.category,
+        },
+      });
+
       return {
         success: true,
         message: `Orchestrator processed ${event.source} event`,
@@ -91,6 +180,23 @@ export class OrchestratorHandler implements EventHandler {
         },
       };
     } catch (error) {
+      const latencyMs = Date.now() - startTime;
+
+      // Emit dispatch failure metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'dispatch',
+        latencyMs,
+        success: false,
+        metadata: {
+          handler: this.name,
+          webhookId: event.webhookId,
+          source: event.source,
+          category: event.classification.category,
+          error: error instanceof Error ? error.message : 'Orchestrator error',
+        },
+      });
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Orchestrator error',

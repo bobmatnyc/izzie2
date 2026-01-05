@@ -12,6 +12,7 @@ import type {
 } from './types';
 import { HandlerRegistry, getDefaultHandler } from './registry';
 import { RoutingRules, getHandlerForCategory } from './rules';
+import { logger } from '@/lib/metrics';
 
 /**
  * Event dispatcher with routing logic
@@ -92,6 +93,22 @@ export class EventDispatcher {
 
       const processingTimeMs = Date.now() - startTime;
 
+      // Emit routing metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'routing',
+        latencyMs: processingTimeMs,
+        success: handlerResult.success,
+        metadata: {
+          webhookId: event.webhookId,
+          source: event.source,
+          category,
+          handler,
+          confidence: event.classification.confidence,
+          hasCustomRule: routingDecision.metadata.hasCustomRule,
+        },
+      });
+
       return {
         success: handlerResult.success,
         handler,
@@ -103,6 +120,21 @@ export class EventDispatcher {
       };
     } catch (error) {
       const processingTimeMs = Date.now() - startTime;
+
+      // Emit routing failure metric
+      logger.metric({
+        timestamp: new Date(),
+        type: 'routing',
+        latencyMs: processingTimeMs,
+        success: false,
+        metadata: {
+          webhookId: event.webhookId,
+          source: event.source,
+          category,
+          handler,
+          error: error instanceof Error ? error.message : 'Unknown dispatch error',
+        },
+      });
 
       return {
         success: false,

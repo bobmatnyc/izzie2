@@ -23,6 +23,7 @@ import {
   getActions,
 } from './prompts';
 import { getCache } from './cache';
+import { logger } from '@/lib/metrics';
 
 /**
  * Map model tier to model ID
@@ -61,16 +62,38 @@ export class TieredClassifier {
    * Classify event with automatic tier escalation
    */
   async classify(event: WebhookEvent): Promise<ClassificationResult> {
+    const startTime = Date.now();
+    let cacheHit = false;
+
     // Check cache first
     if (this.enableCache) {
       const cached = this.cache.get(event);
       if (cached) {
         console.log('[TieredClassifier] Cache hit for event', event.webhookId);
+        cacheHit = true;
+
+        // Emit cache hit metric
+        logger.metric({
+          timestamp: new Date(),
+          type: 'classification',
+          tier: cached.tier,
+          confidence: cached.confidence,
+          latencyMs: Date.now() - startTime,
+          cost: cached.cost,
+          success: true,
+          metadata: {
+            webhookId: event.webhookId,
+            source: event.source,
+            category: cached.category,
+            cacheHit: true,
+            escalated: cached.escalated,
+          },
+        });
+
         return cached;
       }
     }
 
-    const startTime = Date.now();
     const attempts: Array<{ tier: ModelTier; confidence: number; category: string; model: ModelId }> = [];
 
     let result: ClassificationResult | null = null;
@@ -99,6 +122,24 @@ export class TieredClassifier {
         if (this.enableCache) {
           this.cache.set(event, result);
         }
+
+        // Emit classification metric
+        logger.metric({
+          timestamp: new Date(),
+          type: 'classification',
+          tier: result.tier,
+          confidence: result.confidence,
+          latencyMs: Date.now() - startTime,
+          cost: result.cost,
+          success: true,
+          metadata: {
+            webhookId: event.webhookId,
+            source: event.source,
+            category: result.category,
+            cacheHit: false,
+            escalated: false,
+          },
+        });
 
         return result;
       }
@@ -135,6 +176,25 @@ export class TieredClassifier {
         if (this.enableCache) {
           this.cache.set(event, result);
         }
+
+        // Emit classification metric
+        logger.metric({
+          timestamp: new Date(),
+          type: 'classification',
+          tier: result.tier,
+          confidence: result.confidence,
+          latencyMs: Date.now() - startTime,
+          cost: result.cost,
+          success: true,
+          metadata: {
+            webhookId: event.webhookId,
+            source: event.source,
+            category: result.category,
+            cacheHit: false,
+            escalated: true,
+            escalationPath: result.escalationPath,
+          },
+        });
 
         return result;
       }
@@ -184,6 +244,26 @@ export class TieredClassifier {
     };
 
     console.log('[TieredClassifier] Escalation metrics:', metrics);
+
+    // Emit classification metric for final result
+    logger.metric({
+      timestamp: new Date(),
+      type: 'classification',
+      tier: result.tier,
+      confidence: result.confidence,
+      latencyMs: totalTime,
+      cost: result.cost,
+      success: true,
+      metadata: {
+        webhookId: event.webhookId,
+        source: event.source,
+        category: result.category,
+        cacheHit: false,
+        escalated: true,
+        escalationPath: result.escalationPath,
+        escalationCount: metrics.escalationCount,
+      },
+    });
 
     return result;
   }
