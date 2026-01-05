@@ -5,11 +5,9 @@
 
 import { serve } from 'inngest/next';
 import { inngest } from '@/lib/events';
+import { functions } from '@/lib/events/functions';
 
-// Define your Inngest functions here
-// Example: const helloWorld = inngest.createFunction(...)
-const functions: never[] = [];
-
+// Register all Inngest functions
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions,

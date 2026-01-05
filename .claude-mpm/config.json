@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "memory": {
+    "provider": "kuzu-memory",
+    "auto_enhance": true,
+    "async_learning": true,
+    "project_root": "/Users/masa/Projects/izzie2"
+  },
+  "hooks": {
+    "pre_response": [
+      "/Users/masa/.local/bin/kuzu-memory enhance"
+    ],
+    "post_response": [
+      "/Users/masa/.local/bin/kuzu-memory learn --quiet"
+    ]
+  },
+  "settings": {
+    "max_context_size": 5,
+    "similarity_threshold": 0.7,
+    "temporal_decay": true
+  }
+}

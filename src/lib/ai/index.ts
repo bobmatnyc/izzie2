@@ -1,32 +1,87 @@
 /**
  * AI Integration Layer
- * Handles OpenRouter API calls for various AI models
+ * Handles OpenRouter API calls for various AI models with tiered routing
  */
 
-import OpenAI from 'openai';
+// Re-export everything from models
+export {
+  MODELS,
+  MODEL_COSTS,
+  MODEL_CONFIGS,
+  type ModelId,
+  type ModelTier,
+  type ModelConfig,
+  estimateCost,
+  estimateTokens,
+  getNextTier,
+} from './models';
 
-const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+// Re-export client
+export { OpenRouterClient, getAIClient } from './client';
 
-// Models used in Izzie2
-export const MODELS = {
-  ORCHESTRATOR: 'anthropic/claude-opus-4-20250514', // Main decision maker
-  CLASSIFIER: 'mistralai/mistral-large', // Event classification
-  FAST: 'anthropic/claude-3.5-haiku', // Quick responses
-} as const;
+// Convenience functions using the singleton client
+import { getAIClient } from './client';
+import type { ChatMessage, ChatOptions, ChatResponse, ClassificationResult } from '@/types';
 
-export function createAIClient() {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+/**
+ * Send a chat completion request
+ */
+export async function chat(
+  messages: ChatMessage[],
+  options?: ChatOptions
+): Promise<ChatResponse> {
+  const client = getAIClient();
+  return client.chat(messages, options);
+}
 
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY environment variable is required');
-  }
+/**
+ * Stream a chat completion
+ */
+export async function* streamChat(
+  messages: ChatMessage[],
+  options?: ChatOptions
+): AsyncGenerator<{
+  delta: string;
+  content: string;
+  model: string;
+  done: boolean;
+}> {
+  const client = getAIClient();
+  yield* client.streamChat(messages, options);
+}
 
-  return new OpenAI({
-    baseURL: OPENROUTER_BASE_URL,
-    apiKey,
-    defaultHeaders: {
-      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      'X-Title': 'Izzie2',
-    },
-  });
+/**
+ * Classify text into categories
+ */
+export async function classify(
+  text: string,
+  categories: string[],
+  options?: Omit<ChatOptions, 'model'>
+): Promise<ClassificationResult> {
+  const client = getAIClient();
+  return client.classify(text, categories, options);
+}
+
+/**
+ * Get total usage cost
+ */
+export function getTotalCost(): number {
+  const client = getAIClient();
+  return client.getTotalCost();
+}
+
+/**
+ * Get usage statistics
+ */
+export function getUsageStats() {
+  const client = getAIClient();
+  return client.getUsageStats();
+}
+
+/**
+ * Reset usage statistics
+ */
+export function resetUsageStats(): void {
+  const client = getAIClient();
+  client.resetUsageStats();
 }
