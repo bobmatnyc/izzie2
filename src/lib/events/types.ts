@@ -91,6 +91,75 @@ export const SchedulingRequestSchema = z.object({
 export type SchedulingRequestPayload = z.infer<typeof SchedulingRequestSchema>;
 
 /**
+ * Email content extracted event schema
+ * Emitted when new emails are fetched and need entity extraction
+ */
+export const EmailContentExtractedSchema = z.object({
+  userId: z.string(),
+  emailId: z.string(),
+  subject: z.string(),
+  body: z.string(),
+  from: z.object({
+    name: z.string().optional(),
+    email: z.string(),
+  }),
+  to: z.array(z.object({
+    name: z.string().optional(),
+    email: z.string(),
+  })),
+  date: z.string(),
+  threadId: z.string(),
+  labels: z.array(z.string()),
+  snippet: z.string().optional(),
+});
+
+export type EmailContentExtractedPayload = z.infer<typeof EmailContentExtractedSchema>;
+
+/**
+ * Drive content extracted event schema
+ * Emitted when new/changed Drive files are fetched and need entity extraction
+ */
+export const DriveContentExtractedSchema = z.object({
+  userId: z.string(),
+  fileId: z.string(),
+  fileName: z.string(),
+  mimeType: z.string(),
+  content: z.string(),
+  modifiedTime: z.string(),
+  owners: z.array(z.object({
+    displayName: z.string(),
+    emailAddress: z.string(),
+  })),
+});
+
+export type DriveContentExtractedPayload = z.infer<typeof DriveContentExtractedSchema>;
+
+/**
+ * Entities extracted event schema
+ * Emitted after entity extraction is complete
+ */
+export const EntitiesExtractedSchema = z.object({
+  userId: z.string(),
+  sourceId: z.string(), // emailId or fileId
+  sourceType: z.enum(['email', 'drive']),
+  entities: z.array(
+    z.object({
+      type: z.enum(['person', 'company', 'project', 'location', 'date', 'topic']),
+      value: z.string(),
+      normalized: z.string(),
+      confidence: z.number().min(0).max(1),
+      source: z.string(),
+      context: z.string().optional(),
+    })
+  ),
+  extractedAt: z.string(),
+  cost: z.number(),
+  model: z.string(),
+});
+
+export type EntitiesExtractedPayload = z.infer<typeof EntitiesExtractedSchema>;
+
+/**
  * Inngest Events Type Definition
  * Maps event names to their data payloads
  */
@@ -110,6 +179,15 @@ export type Events = {
   'izzie/scheduling.request': {
     data: SchedulingRequestPayload;
   };
+  'izzie/ingestion.email.extracted': {
+    data: EmailContentExtractedPayload;
+  };
+  'izzie/ingestion.drive.extracted': {
+    data: DriveContentExtractedPayload;
+  };
+  'izzie/ingestion.entities.extracted': {
+    data: EntitiesExtractedPayload;
+  };
 };
 
 /**
@@ -125,6 +203,9 @@ export function validateEventData<T extends keyof Events>(
     'izzie/event.processed': EventProcessedSchema,
     'izzie/notification.send': NotificationSendSchema,
     'izzie/scheduling.request': SchedulingRequestSchema,
+    'izzie/ingestion.email.extracted': EmailContentExtractedSchema,
+    'izzie/ingestion.drive.extracted': DriveContentExtractedSchema,
+    'izzie/ingestion.entities.extracted': EntitiesExtractedSchema,
   };
 
   const schema = schemas[eventName];
