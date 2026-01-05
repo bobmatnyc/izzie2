@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev --turbopack -p 3300",
-    "build": "next build",
+    "build": "npm run build:info && next build",
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -20,7 +20,13 @@
     "test:integration": "vitest run tests/integration",
     "test:e2e": "vitest run tests/e2e",
     "test:cov": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "version:patch": "./scripts/version.sh patch",
+    "version:minor": "./scripts/version.sh minor",
+    "version:major": "./scripts/version.sh major",
+    "build:info": "./scripts/build-info.sh",
+    "changelog": "./scripts/changelog.sh",
+    "release": "npm run version:patch && npm run changelog && npm run build:info"
   },
   "repository": {
     "type": "git",
