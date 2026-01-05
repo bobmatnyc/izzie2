@@ -12,6 +12,9 @@
 .env.local
 .env*.local
 
+# Credentials directory (service account keys)
+.credentials/
+
 # Next.js
 /.next/
 /out/

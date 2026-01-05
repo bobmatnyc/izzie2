@@ -1,18 +1,13 @@
 /**
- * Classifier Agent (Mistral Large)
- * Classifies incoming events and determines required actions
+ * Classifier Agent
+ * Tiered classification with automatic escalation: Mistral → Sonnet → Opus
  */
 
-import type { BaseEvent } from '@/types';
+export * from './types';
+export * from './prompts';
+export * from './cache';
+export * from './classifier';
 
-export class ClassifierAgent {
-  constructor() {
-    // Placeholder for POC-1 (Issue #8)
-  }
-
-  async classify(event: BaseEvent): Promise<string[]> {
-    // TODO: Implement in POC-1
-    console.warn('ClassifierAgent.classify not yet implemented', event);
-    return [];
-  }
-}
+// Re-export main classifier functions
+export { getClassifier, resetClassifier, TieredClassifier } from './classifier';
+export { getCache, resetCache, ClassificationCache } from './cache';
