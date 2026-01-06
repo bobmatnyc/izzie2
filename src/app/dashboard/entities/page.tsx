@@ -7,6 +7,8 @@
 
 import { useState, useEffect } from 'react';
 import { EntityCard } from '@/components/dashboard/EntityCard';
+import { authClient } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface Entity {
@@ -44,15 +46,33 @@ const ENTITY_TYPES = [
 ];
 
 export default function EntitiesPage() {
+  const router = useRouter();
+  const [session, setSession] = useState<any>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedType, setSelectedType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  // Check authentication first
+  useEffect(() => {
+    authClient.getSession().then((result) => {
+      if (!result.data?.user) {
+        // Not authenticated, redirect to login
+        router.push('/login');
+      } else {
+        setSession(result.data);
+        setAuthChecking(false);
+      }
+    });
+  }, [router]);
 
   // Fetch entities
   const fetchEntities = async (type: string = '') => {
     setIsLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (type) params.set('type', type);
@@ -64,19 +84,24 @@ export default function EntitiesPage() {
         setEntities(data.entities);
         setStats(data.stats);
       } else {
-        console.error('Failed to fetch entities:', await response.text());
+        const errorData = await response.json();
+        console.error('Failed to fetch entities:', errorData);
+        setError(errorData.details || errorData.error || 'Failed to fetch entities');
       }
     } catch (error) {
       console.error('Failed to fetch entities:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch entities');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Initial load
+  // Initial load - only fetch if authenticated
   useEffect(() => {
-    fetchEntities(selectedType);
-  }, [selectedType]);
+    if (!authChecking && session?.user) {
+      fetchEntities(selectedType);
+    }
+  }, [selectedType, authChecking, session]);
 
   // Filter entities by search query
   const filteredEntities = entities.filter((entity) => {
@@ -88,6 +113,30 @@ export default function EntitiesPage() {
       entity.context?.toLowerCase().includes(query)
     );
   });
+
+  // Show loading while checking auth
+  if (authChecking) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              display: 'inline-block',
+              width: '40px',
+              height: '40px',
+              border: '4px solid #f3f4f6',
+              borderTopColor: '#3b82f6',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }}
+          />
+          <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+            Checking authentication...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
@@ -293,6 +342,26 @@ export default function EntitiesPage() {
           </div>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <div
+            style={{
+              backgroundColor: '#fee2e2',
+              border: '1px solid #f87171',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginBottom: '2rem',
+            }}
+          >
+            <p style={{ color: '#dc2626', fontWeight: '600', marginBottom: '0.5rem' }}>
+              Error loading entities
+            </p>
+            <p style={{ color: '#7f1d1d', fontSize: '0.875rem' }}>
+              {error}
+            </p>
+          </div>
+        )}
+
         {/* Loading State */}
         {isLoading && (
           <div style={{ textAlign: 'center', padding: '4rem' }}>
@@ -320,7 +389,7 @@ export default function EntitiesPage() {
         )}
 
         {/* Empty State */}
-        {!isLoading && filteredEntities.length === 0 && (
+        {!isLoading && !error && filteredEntities.length === 0 && (
           <div
             style={{
               backgroundColor: '#fff',
@@ -348,7 +417,7 @@ export default function EntitiesPage() {
         )}
 
         {/* Entity Grid */}
-        {!isLoading && filteredEntities.length > 0 && (
+        {!isLoading && !error && filteredEntities.length > 0 && (
           <div
             style={{
               display: 'grid',
