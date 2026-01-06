@@ -107,7 +107,7 @@ class NeonClient {
 
   /**
    * Get raw Pool instance
-   * Used by Better Auth adapter which expects raw Pool, not Drizzle instance
+   * Useful for raw SQL queries or libraries that need direct pool access
    */
   getPool(): Pool {
     if (!this.pool) {

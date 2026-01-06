@@ -203,11 +203,12 @@ export const accounts = pgTable(
 /**
  * Verifications table - stores email verification tokens
  * Used for email verification and password reset flows
+ * Note: ID is text, not UUID, because Better Auth generates its own IDs
  */
 export const verifications = pgTable(
   'verifications',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id').primaryKey(),
     identifier: text('identifier').notNull(), // Email or phone
     value: text('value').notNull(), // Verification token
     expiresAt: timestamp('expires_at').notNull(),
