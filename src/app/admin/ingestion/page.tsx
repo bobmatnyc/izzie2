@@ -9,6 +9,8 @@ import { useState, useEffect } from 'react';
 import { StatusCard } from '@/components/admin/StatusCard';
 import { GraphStats } from '@/components/admin/GraphStats';
 import { ControlButton } from '@/components/admin/ControlButton';
+import { SignOutButton } from '@/components/auth/SignOutButton';
+import Link from 'next/link';
 
 interface IngestionStatus {
   userId: string;
@@ -202,12 +204,29 @@ export default function IngestionDashboard() {
       {/* Header */}
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 2rem' }}>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111' }}>
-            Ingestion Dashboard
-          </h1>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
-            Monitor and control email and Drive ingestion pipeline
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111' }}>
+                  Ingestion Dashboard
+                </h1>
+                <Link
+                  href="/"
+                  style={{
+                    fontSize: '0.875rem',
+                    color: '#6b7280',
+                    textDecoration: 'none',
+                  }}
+                >
+                  ← Home
+                </Link>
+              </div>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                Monitor and control email and Drive ingestion pipeline
+              </p>
+            </div>
+            <SignOutButton variant="minimal" />
+          </div>
         </div>
       </div>
 
