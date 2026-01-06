@@ -5,9 +5,9 @@
 
 export const BUILD_INFO = {
   version: '1.0.0',
-  gitHash: '53afb4c',
-  gitBranch: 'feat/poc-2-benchmarks',
-  buildTime: '2026-01-05T21:49:31Z',
+  gitHash: 'a5452d2',
+  gitBranch: 'main',
+  buildTime: '2026-01-06T20:25:51Z',
   nodeVersion: 'v25.2.1',
   isDirty: true,
 } as const;
