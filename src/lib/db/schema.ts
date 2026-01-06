@@ -212,6 +212,7 @@ export const verifications = pgTable(
     value: text('value').notNull(), // Verification token
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
     identifierIdx: index('verifications_identifier_idx').on(table.identifier),

@@ -1,5 +1,6 @@
 import { test as setup, expect } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Authentication Setup for Playwright Tests
@@ -17,59 +18,91 @@ import path from 'path';
  * - E2E_TEST_EMAIL: Test user email (default: bob@matsuoka.com)
  */
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const authFile = path.join(__dirname, '.auth/user.json');
 
 setup('authenticate with Google OAuth', async ({ page }) => {
   const testEmail = process.env.E2E_TEST_EMAIL || 'bob@matsuoka.com';
+  const baseUrl = 'http://localhost:3300';
 
   console.log(`🔐 Authenticating as ${testEmail}...`);
 
-  // Navigate to the application
-  await page.goto('http://localhost:3300');
+  // First, check if we have a valid session by checking the session endpoint
+  const sessionResponse = await page.request.get(`${baseUrl}/api/auth/get-session`);
+  const sessionData = await sessionResponse.json().catch(() => null);
 
-  // Check if already authenticated by looking for common authenticated UI elements
-  // Adjust these selectors based on your app's authenticated state
-  const isAuthenticated = await page
-    .getByText(/dashboard|profile|logout/i)
-    .first()
-    .isVisible()
-    .catch(() => false);
-
-  if (isAuthenticated) {
-    console.log('✅ Already authenticated, saving state...');
+  if (sessionData?.user?.email) {
+    console.log(`✅ Already authenticated as ${sessionData.user.email}, saving state...`);
+    await page.goto(baseUrl);
     await page.context().storageState({ path: authFile });
     return;
   }
 
-  // Not authenticated - need to login
+  // Not authenticated - navigate to login page
   console.log('🚀 Starting Google OAuth flow...');
+  console.log('ℹ️  A browser window will open. Please complete the Google login manually.');
+  console.log(`ℹ️  Use account: ${testEmail}`);
 
-  // Click on "Sign in with Google" button
-  // Adjust this selector based on your actual sign-in button
-  const signInButton = page.getByRole('button', { name: /sign in with google/i });
-  await signInButton.click();
+  // Navigate to the login page
+  await page.goto(`${baseUrl}/login`);
 
-  // Wait for Google OAuth popup or redirect
-  // This will require manual interaction in headed mode for first-time setup
-  console.log('⏳ Waiting for OAuth flow to complete...');
-  console.log('ℹ️  If this is your first time, complete the Google login manually');
+  // Click the Google sign-in button
+  console.log('📍 Clicking Google sign-in button...');
 
-  // Wait for navigation back to the app after OAuth
-  await page.waitForURL('http://localhost:3300/**', {
-    timeout: 120000, // 2 minutes for manual OAuth completion
-  });
+  // Start listening for navigation before clicking
+  const navigationPromise = page.waitForURL(
+    (url) => url.hostname.includes('accounts.google') || url.hostname.includes('google.com'),
+    { timeout: 30000 }
+  ).catch(() => null);
 
-  // Wait for authenticated state (adjust selector to your app)
-  await page.waitForSelector('[data-testid="user-menu"], [data-testid="dashboard"]', {
-    timeout: 10000,
-  });
+  await page.getByTestId('google-signin-button').click();
 
-  console.log('✅ Authentication successful!');
+  // Wait for navigation to Google OAuth
+  console.log('⏳ Waiting for redirect to Google...');
+  const googleUrl = await navigationPromise;
+
+  if (!googleUrl) {
+    // If no redirect happened, check if we're already authenticated
+    const quickCheck = await page.request.get(`${baseUrl}/api/auth/get-session`);
+    const quickData = await quickCheck.json().catch(() => null);
+    if (quickData?.user?.email) {
+      console.log(`✅ Already authenticated as ${quickData.user.email}`);
+      await page.context().storageState({ path: authFile });
+      return;
+    }
+    throw new Error('Failed to redirect to Google OAuth. Check your GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
+  }
+
+  console.log('📍 Redirected to Google OAuth');
+  console.log('ℹ️  Complete the Google sign-in in the browser window');
+  console.log('⏳ Waiting for OAuth flow to complete (up to 2 minutes)...');
+
+  // Wait for redirect back to the app after OAuth completion
+  await page.waitForURL(
+    (url) => url.hostname === 'localhost',
+    { timeout: 120000 } // 2 minutes for manual OAuth completion
+  );
+
+  // Give time for session to be established and cookies to be set
+  await page.waitForTimeout(3000);
+
+  console.log('✅ OAuth redirect complete, verifying session...');
+
+  // Verify we have a valid session now
+  const verifyResponse = await page.request.get(`${baseUrl}/api/auth/get-session`);
+  const verifyData = await verifyResponse.json().catch(() => null);
+
+  if (!verifyData?.user?.email) {
+    throw new Error('Authentication failed - no user session found after OAuth');
+  }
+
+  console.log(`✅ Successfully authenticated as ${verifyData.user.email}`);
 
   // Save the authenticated state
   await page.context().storageState({ path: authFile });
   console.log(`💾 Auth state saved to ${authFile}`);
 
-  // Verify we're logged in
+  // Verify we're on the app
   expect(page.url()).toContain('localhost:3300');
 });
