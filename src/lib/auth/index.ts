@@ -17,7 +17,7 @@ import { eq, and } from 'drizzle-orm';
  * - Session management
  */
 export const auth = betterAuth({
-  database: drizzleAdapter(dbClient.getDb(), {
+  database: drizzleAdapter(dbClient.getPool(), {
     provider: 'pg',
     schema: {
       user: users,

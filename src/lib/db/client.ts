@@ -106,6 +106,22 @@ class NeonClient {
   }
 
   /**
+   * Get raw Pool instance
+   * Used by Better Auth adapter which expects raw Pool, not Drizzle instance
+   */
+  getPool(): Pool {
+    if (!this.pool) {
+      this.initialize();
+    }
+
+    if (!this.pool) {
+      throw new Error('[DB] Database not initialized');
+    }
+
+    return this.pool;
+  }
+
+  /**
    * Execute raw SQL query
    */
   async executeRaw<T = unknown>(query: string, params: unknown[] = []): Promise<T[]> {
