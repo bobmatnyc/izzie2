@@ -38,7 +38,7 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      // Request Calendar and Gmail API scopes for future use
+      // Request Calendar, Gmail, Tasks, and Drive API scopes for future use
       scope: [
         'openid',
         'email',
@@ -46,6 +46,8 @@ export const auth = betterAuth({
         'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/calendar.events',
         'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/tasks.readonly',
+        'https://www.googleapis.com/auth/drive.readonly',
       ],
       // Request offline access to get refresh token
       accessType: 'offline',
