@@ -188,7 +188,8 @@ export const accounts = pgTable(
     accessToken: text('access_token'),
     refreshToken: text('refresh_token'),
     idToken: text('id_token'),
-    expiresAt: timestamp('expires_at'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at'),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
     scope: text('scope'),
     password: text('password'), // For email/password auth
     createdAt: timestamp('created_at').defaultNow().notNull(),

@@ -44,7 +44,7 @@ async function getCalendarClient(userId: string): Promise<{
     oauth2Client.setCredentials({
       access_token: tokens.accessToken || undefined,
       refresh_token: tokens.refreshToken || undefined,
-      expiry_date: tokens.expiresAt ? new Date(tokens.expiresAt).getTime() : undefined,
+      expiry_date: tokens.accessTokenExpiresAt ? new Date(tokens.accessTokenExpiresAt).getTime() : undefined,
     });
 
     // Auto-refresh tokens if needed

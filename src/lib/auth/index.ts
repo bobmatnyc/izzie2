@@ -127,7 +127,8 @@ export async function getGoogleTokens(userId: string) {
   return {
     accessToken: account.accessToken,
     refreshToken: account.refreshToken,
-    expiresAt: account.expiresAt,
+    accessTokenExpiresAt: account.accessTokenExpiresAt,
+    refreshTokenExpiresAt: account.refreshTokenExpiresAt,
     scope: account.scope,
   };
 }
