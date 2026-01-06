@@ -7,11 +7,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAccountAuth } from '@/lib/google/auth';
 import { getGmailService } from '@/lib/google/gmail';
 import type { SyncStatus } from '@/lib/google/types';
+import { inngest } from '@/lib/events';
+import type { EmailContentExtractedPayload } from '@/lib/events/types';
 
 // In-memory sync status (in production, use Redis or database)
-let syncStatus: SyncStatus = {
+let syncStatus: SyncStatus & { eventsSent?: number } = {
   isRunning: false,
   emailsProcessed: 0,
+  eventsSent: 0,
 };
 
 /**
@@ -90,6 +93,7 @@ async function startSync(
   syncStatus = {
     isRunning: true,
     emailsProcessed: 0,
+    eventsSent: 0,
     lastSync: new Date(),
   };
 
@@ -116,8 +120,34 @@ async function startSync(
       totalProcessed += batch.emails.length;
       syncStatus.emailsProcessed = totalProcessed;
 
-      // TODO: Process emails (store in database, trigger events, etc.)
-      console.log(`[Gmail Sync] Processed ${batch.emails.length} emails`);
+      // Emit events for entity extraction (batch send for efficiency)
+      if (batch.emails.length > 0) {
+        const events = batch.emails.map((email) => ({
+          name: 'izzie/ingestion.email.extracted' as const,
+          data: {
+            userId: userEmail || 'default',
+            emailId: email.id,
+            subject: email.subject,
+            body: email.body,
+            from: {
+              name: email.from.name,
+              email: email.from.email,
+            },
+            to: email.to.map((addr) => ({
+              name: addr.name,
+              email: addr.email,
+            })),
+            date: email.date.toISOString(),
+            threadId: email.threadId,
+            labels: email.labels,
+            snippet: email.snippet,
+          } satisfies EmailContentExtractedPayload,
+        }));
+
+        await inngest.send(events);
+        syncStatus.eventsSent = (syncStatus.eventsSent || 0) + events.length;
+        console.log(`[Gmail Sync] Sent ${events.length} events for entity extraction`);
+      }
 
       // Log sent emails (high-signal for significance)
       const sentEmails = batch.emails.filter((email) => email.isSent);
@@ -135,7 +165,9 @@ async function startSync(
 
     syncStatus.isRunning = false;
     syncStatus.lastSync = new Date();
-    console.log(`[Gmail Sync] Completed. Processed ${totalProcessed} emails`);
+    console.log(
+      `[Gmail Sync] Completed. Processed ${totalProcessed} emails, sent ${syncStatus.eventsSent} events for extraction`
+    );
   } catch (error) {
     console.error('[Gmail Sync] Sync failed:', error);
     syncStatus.isRunning = false;
