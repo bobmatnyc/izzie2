@@ -54,3 +54,9 @@ kuzu-memories/
 benchmark-results/
 *.benchmark.json
 *.benchmark.md
+
+# Playwright E2E tests
+tests/e2e/playwright/.auth/
+playwright-report/
+test-results/
+.playwright/
