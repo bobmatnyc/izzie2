@@ -29,6 +29,27 @@
       "when": 1767722226255,
       "tag": "0003_woozy_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1767729266815,
+      "tag": "0004_greedy_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767729899946,
+      "tag": "0005_talented_excalibur",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767730104147,
+      "tag": "0006_curly_tattoo",
+      "breakpoints": true
     }
   ]
 }

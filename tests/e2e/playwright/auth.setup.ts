@@ -26,6 +26,9 @@ setup('authenticate with Google OAuth', async ({ page }) => {
   const testEmail = process.env.E2E_TEST_EMAIL || 'bob@matsuoka.com';
   const baseUrl = 'http://localhost:3300';
 
+  // Set test timeout to 3 minutes to allow manual OAuth flow
+  setup.setTimeout(180000);
+
   console.log(`🔐 Authenticating as ${testEmail}...`);
 
   // First, check if we have a valid session by checking the session endpoint
@@ -50,19 +53,18 @@ setup('authenticate with Google OAuth', async ({ page }) => {
   // Click the Google sign-in button
   console.log('📍 Clicking Google sign-in button...');
 
-  // Start listening for navigation before clicking
-  const navigationPromise = page.waitForURL(
-    (url) => url.hostname.includes('accounts.google') || url.hostname.includes('google.com'),
-    { timeout: 30000 }
-  ).catch(() => null);
-
-  await page.getByTestId('google-signin-button').click();
-
-  // Wait for navigation to Google OAuth
+  // Wait for navigation to Google OAuth after clicking
   console.log('⏳ Waiting for redirect to Google...');
-  const googleUrl = await navigationPromise;
 
-  if (!googleUrl) {
+  try {
+    await Promise.all([
+      page.waitForURL(
+        (url) => url.hostname.includes('accounts.google') || url.hostname.includes('google.com'),
+        { timeout: 30000 }
+      ),
+      page.getByTestId('google-signin-button').click()
+    ]);
+  } catch (error) {
     // If no redirect happened, check if we're already authenticated
     const quickCheck = await page.request.get(`${baseUrl}/api/auth/get-session`);
     const quickData = await quickCheck.json().catch(() => null);

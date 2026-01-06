@@ -47,10 +47,12 @@ const vector = customType<{ data: number[]; driverData: string }>({
 export const users = pgTable(
   'users',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id').primaryKey(),
     email: varchar('email', { length: 255 }).notNull().unique(),
+    emailVerified: boolean('email_verified').default(false).notNull(),
     name: text('name'),
-    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    image: text('image'),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -67,7 +69,7 @@ export const conversations = pgTable(
   'conversations',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     title: text('title'),
@@ -94,7 +96,7 @@ export const memoryEntries = pgTable(
     conversationId: uuid('conversation_id').references(() => conversations.id, {
       onDelete: 'cascade',
     }),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
@@ -152,7 +154,7 @@ export const sessions = pgTable(
   'sessions',
   {
     id: text('id').primaryKey(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     expiresAt: timestamp('expires_at').notNull(),
@@ -172,12 +174,13 @@ export const sessions = pgTable(
 /**
  * Accounts table - stores OAuth provider accounts
  * Links users to their OAuth providers (Google, etc.)
+ * Note: ID is text, not UUID, because Better Auth generates its own IDs (base62 format)
  */
 export const accounts = pgTable(
   'accounts',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    id: text('id').primaryKey(),
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     accountId: text('account_id').notNull(), // Provider's user ID
@@ -252,7 +255,7 @@ export const proxyAuthorizations = pgTable(
   'proxy_authorizations',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
@@ -307,7 +310,7 @@ export const proxyAuditLog = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
 
     // Who and what
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     authorizationId: uuid('authorization_id')
@@ -383,7 +386,7 @@ export const userAuthorizationPreferences = pgTable(
   'user_authorization_preferences',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     templateId: uuid('template_id')
@@ -409,7 +412,7 @@ export const consentHistory = pgTable(
   'consent_history',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     authorizationId: uuid('authorization_id')
@@ -447,7 +450,7 @@ export const proxyRollbacks = pgTable(
     auditEntryId: uuid('audit_entry_id')
       .references(() => proxyAuditLog.id, { onDelete: 'cascade' })
       .notNull(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
