@@ -10,7 +10,8 @@ import { getServiceAccountAuth } from '@/lib/google/auth';
 import { GmailService } from '@/lib/google/gmail';
 import { getEntityExtractor } from '@/lib/extraction/entity-extractor';
 import { dbClient } from '@/lib/db/client';
-import { memoryEntries } from '@/lib/db/schema';
+import { memoryEntries, users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function POST(request: Request) {
   try {
@@ -28,8 +29,27 @@ export async function POST(request: Request) {
       daysSince,
     });
 
+    // 0. Look up user ID from email
+    const db = dbClient.getDb();
+    const userEmail = userId; // Keep email for Gmail auth
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, userEmail))
+      .limit(1);
+
+    if (!userResult.length) {
+      return NextResponse.json(
+        { error: `User not found with email: ${userEmail}` },
+        { status: 404 }
+      );
+    }
+
+    const dbUserId = userResult[0].id;
+    console.log('[Batch Extract] Found user:', { email: userEmail, id: dbUserId });
+
     // 1. Authenticate with Google (service account with impersonation)
-    const auth = await getServiceAccountAuth(userId);
+    const auth = await getServiceAccountAuth(userEmail);
     const gmailService = new GmailService(auth);
 
     console.log('[Batch Extract] Fetching emails from Gmail...');
@@ -63,7 +83,6 @@ export async function POST(request: Request) {
 
     // 4. Store results in memory_entries table
     console.log('[Batch Extract] Storing results in database...');
-    const db = dbClient.getDb();
     const insertedEntries = [];
 
     for (const result of extractionResults) {
@@ -90,7 +109,7 @@ export async function POST(request: Request) {
       const [inserted] = await db
         .insert(memoryEntries)
         .values({
-          userId,
+          userId: dbUserId,
           content,
           summary,
           metadata: {
