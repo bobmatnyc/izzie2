@@ -19,6 +19,7 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "vitest run tests/e2e",
+    "test:proxy": "tsx tests/proxy/run-proxy-tests.ts",
     "test:cov": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "version:patch": "./scripts/version.sh patch",
