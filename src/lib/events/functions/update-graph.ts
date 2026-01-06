@@ -24,7 +24,7 @@ export const updateGraph = inngest.createFunction(
   },
   { event: 'izzie/ingestion.entities.extracted' },
   async ({ event, step }) => {
-    const { userId, sourceId, sourceType, entities, extractedAt, cost, model } = event.data;
+    const { userId, sourceId, sourceType, entities, spam, extractedAt, cost, model } = event.data;
 
     console.log(
       `${LOG_PREFIX} Updating graph for ${sourceType} ${sourceId} with ${entities.length} entities`
@@ -37,6 +37,7 @@ export const updateGraph = inngest.createFunction(
         const extractionResult: ExtractionResult = {
           emailId: sourceId,
           entities: entities,
+          spam: spam,
           extractedAt: new Date(extractedAt),
           cost,
           model,

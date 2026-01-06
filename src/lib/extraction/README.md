@@ -11,10 +11,14 @@ The Entity Extraction service analyzes emails to identify:
 - **Dates** - Important dates and deadlines
 - **Topics** - Subject areas and themes
 - **Locations** - Geographic references (cities, countries, addresses)
+- **Action Items** - Tasks, todos, and follow-ups (with assignees and deadlines)
+- **Spam Classification** - AI-powered detection of spam, promotional, and low-value emails
 
 ## Features
 
 - ✅ **AI-Powered Extraction** - Uses Mistral Small via OpenRouter for cost-effective entity recognition
+- ✅ **Spam Detection** - Classify spam/promotional emails with confidence scores
+- ✅ **Action Item Extraction** - Extract tasks with assignees, deadlines, and priorities
 - ✅ **Batch Processing** - Process multiple emails efficiently with progress tracking
 - ✅ **Entity Normalization** - Consistent entity naming (e.g., "Bob" → "bob_johnson")
 - ✅ **Confidence Scoring** - Filter entities by confidence threshold (0.0-1.0)
@@ -63,9 +67,22 @@ const result = await extractor.extractFromEmail(email);
 console.log(`Entities found: ${result.entities.length}`);
 console.log(`Cost: $${result.cost.toFixed(6)}`);
 
+// Check spam classification
+console.log(`Is spam: ${result.spam.isSpam} (score: ${result.spam.spamScore})`);
+if (result.spam.isSpam) {
+  console.log(`Reason: ${result.spam.spamReason}`);
+}
+
 // Access extracted entities
 result.entities.forEach((entity) => {
   console.log(`${entity.type}: ${entity.value} (confidence: ${entity.confidence})`);
+
+  // Action items have additional fields
+  if (entity.type === 'action_item') {
+    console.log(`  Assignee: ${entity.assignee}`);
+    console.log(`  Deadline: ${entity.deadline}`);
+    console.log(`  Priority: ${entity.priority}`);
+  }
 });
 ```
 
@@ -183,6 +200,20 @@ Processing Time: ~78 seconds (3 emails)
 - Addresses
 - Normalized format: `san_francisco`
 
+### Action Item
+- Tasks and todos
+- Follow-up actions
+- Requests for review/approval
+- Normalized format: `review_proposal`
+- Includes: assignee, deadline, priority
+
+### Spam Classification
+- Marketing emails
+- Mass-distributed newsletters
+- Automated notifications
+- Promotional content
+- Scored 0.0-1.0 (0=definitely not spam, 1=definitely spam)
+
 ## Integration with Email Scoring
 
 Combine entity extraction with email scoring for enhanced insights:
@@ -264,6 +295,19 @@ interface Entity {
   confidence: number; // 0-1
   source: 'metadata' | 'body' | 'subject';
   context?: string;
+  // Action item specific properties
+  assignee?: string;
+  deadline?: string;
+  priority?: 'low' | 'medium' | 'high';
+}
+```
+
+**`SpamClassification`**
+```typescript
+interface SpamClassification {
+  isSpam: boolean;
+  spamScore: number; // 0-1 confidence score
+  spamReason?: string; // Why it's classified as spam
 }
 ```
 
@@ -272,6 +316,7 @@ interface Entity {
 interface ExtractionResult {
   emailId: string;
   entities: Entity[];
+  spam: SpamClassification;
   extractedAt: Date;
   cost: number;
   model: string;
@@ -397,7 +442,8 @@ console.log(`Successfully processed ${results.filter(r => r.entities.length > 0)
 - [ ] **Entity Linking** - Link email addresses to person entities
 - [ ] **Name Disambiguation** - Resolve "Bob" vs "Robert Smith"
 - [ ] **Sentiment Analysis** - Add sentiment scores to entities
-- [ ] **Action Item Detection** - Extract TODOs and follow-ups
+- [x] **Action Item Detection** - Extract TODOs and follow-ups ✅
+- [x] **Spam Detection** - AI-powered spam classification ✅
 - [ ] **Memory Layer Integration** - Feed entities to Mem0 (POC-5)
 - [ ] **Relationship Graph** - Build contact/organization network
 - [ ] **Topic Clustering** - Group emails by extracted topics

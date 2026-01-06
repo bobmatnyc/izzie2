@@ -44,6 +44,8 @@ export interface FetchEmailOptions {
   pageToken?: string;
   since?: Date;
   labelIds?: string[];
+  excludePromotions?: boolean; // Exclude promotional emails (default: false)
+  excludeSocial?: boolean; // Exclude social emails (default: false)
 }
 
 export interface SyncStatus {

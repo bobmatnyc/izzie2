@@ -36,10 +36,12 @@ export class GmailService {
       pageToken,
       since,
       labelIds,
+      excludePromotions = false,
+      excludeSocial = false,
     } = options;
 
     // Build query string
-    const query = this.buildQuery(folder, since);
+    const query = this.buildQuery(folder, since, excludePromotions, excludeSocial);
 
     // Determine label IDs based on folder
     const labels = labelIds || this.getFolderLabels(folder);
@@ -333,7 +335,12 @@ export class GmailService {
   /**
    * Build Gmail search query
    */
-  private buildQuery(folder: string, since?: Date): string {
+  private buildQuery(
+    folder: string,
+    since?: Date,
+    excludePromotions?: boolean,
+    excludeSocial?: boolean
+  ): string {
     const parts: string[] = [];
 
     // Add date filter if provided
@@ -349,6 +356,20 @@ export class GmailService {
       parts.push('in:sent');
     }
     // 'all' means no folder filter
+
+    // Always exclude spam and trash
+    parts.push('-label:spam');
+    parts.push('-label:trash');
+
+    // Optionally exclude promotional emails
+    if (excludePromotions) {
+      parts.push('-category:promotions');
+    }
+
+    // Optionally exclude social emails
+    if (excludeSocial) {
+      parts.push('-category:social');
+    }
 
     return parts.join(' ');
   }

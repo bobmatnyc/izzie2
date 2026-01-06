@@ -144,14 +144,23 @@ export const EntitiesExtractedSchema = z.object({
   sourceType: z.enum(['email', 'drive']),
   entities: z.array(
     z.object({
-      type: z.enum(['person', 'company', 'project', 'location', 'date', 'topic']),
+      type: z.enum(['person', 'company', 'project', 'location', 'date', 'topic', 'action_item']),
       value: z.string(),
       normalized: z.string(),
       confidence: z.number().min(0).max(1),
       source: z.string(),
       context: z.string().optional(),
+      // Action item specific properties
+      assignee: z.string().optional(),
+      deadline: z.string().optional(),
+      priority: z.enum(['low', 'medium', 'high']).optional(),
     })
   ),
+  spam: z.object({
+    isSpam: z.boolean(),
+    spamScore: z.number().min(0).max(1),
+    spamReason: z.string().optional(),
+  }),
   extractedAt: z.string(),
   cost: z.number(),
   model: z.string(),

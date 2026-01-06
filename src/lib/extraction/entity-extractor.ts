@@ -68,6 +68,7 @@ export class EntityExtractor {
       return {
         emailId: email.id,
         entities: filteredEntities,
+        spam: parsed.spam,
         extractedAt: new Date(),
         cost: response.usage.cost,
         model: response.model,
@@ -78,6 +79,7 @@ export class EntityExtractor {
       return {
         emailId: email.id,
         entities: [],
+        spam: { isSpam: false, spamScore: 0 },
         extractedAt: new Date(),
         cost: 0,
         model: MODELS.CLASSIFIER,
@@ -238,13 +240,19 @@ export class EntityExtractor {
   /**
    * Parse JSON response from Mistral with error handling
    */
-  private parseExtractionResponse(content: string): { entities: Entity[] } {
+  private parseExtractionResponse(content: string): {
+    entities: Entity[];
+    spam: { isSpam: boolean; spamScore: number; spamReason?: string };
+  } {
     try {
       // Try to extract JSON from response (in case there's extra text)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         console.warn(`${LOG_PREFIX} No JSON found in response`);
-        return { entities: [] };
+        return {
+          entities: [],
+          spam: { isSpam: false, spamScore: 0 },
+        };
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
@@ -252,7 +260,10 @@ export class EntityExtractor {
       // Validate structure
       if (!parsed.entities || !Array.isArray(parsed.entities)) {
         console.warn(`${LOG_PREFIX} Invalid response structure`);
-        return { entities: [] };
+        return {
+          entities: [],
+          spam: { isSpam: false, spamScore: 0 },
+        };
       }
 
       // Validate each entity
@@ -266,11 +277,21 @@ export class EntityExtractor {
         );
       });
 
-      return { entities: validEntities };
+      // Parse spam classification with fallback
+      const spam = {
+        isSpam: parsed.spam?.isSpam ?? false,
+        spamScore: parsed.spam?.spamScore ?? 0,
+        spamReason: parsed.spam?.spamReason,
+      };
+
+      return { entities: validEntities, spam };
     } catch (error) {
       console.error(`${LOG_PREFIX} Failed to parse JSON response:`, error);
       console.error(`${LOG_PREFIX} Response content:`, content);
-      return { entities: [] };
+      return {
+        entities: [],
+        spam: { isSpam: false, spamScore: 0 },
+      };
     }
   }
 

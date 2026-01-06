@@ -30,7 +30,7 @@ export function buildExtractionPrompt(email: Email, config: ExtractionConfig): s
     sources.push(`**Body:**\n${email.body}`);
   }
 
-  return `Extract structured entities from this email.
+  return `Extract structured entities and classify spam from this email.
 
 ${sources.join('\n')}
 
@@ -41,6 +41,15 @@ ${sources.join('\n')}
 4. **date** - Important dates and deadlines
 5. **topic** - Subject areas and themes
 6. **location** - Geographic locations (cities, countries, addresses)
+7. **action_item** - Tasks, todos, and action items (with assignee/deadline if mentioned)
+
+**Spam Classification:**
+Classify if this email is spam/promotional/low-value based on:
+- Marketing/promotional content
+- Mass-distributed newsletters
+- Automated notifications with no actionable content
+- Phishing attempts or suspicious patterns
+- Low relevance to recipient
 
 **Instructions:**
 - Extract all entities with confidence scores (0.0 to 1.0)
@@ -49,9 +58,16 @@ ${sources.join('\n')}
 - Link email addresses to person entities when possible
 - Minimum confidence threshold: ${config.minConfidence}
 - For dates, include the actual date value if parseable
+- For action_item: extract assignee, deadline, and priority if mentioned
+- Classify spam with score 0-1 (0=definitely not spam, 1=definitely spam)
 
 **Response Format (JSON only):**
 {
+  "spam": {
+    "isSpam": false,
+    "spamScore": 0.1,
+    "spamReason": "Personal email with actionable content"
+  },
   "entities": [
     {
       "type": "person",
@@ -62,12 +78,15 @@ ${sources.join('\n')}
       "context": "From: John Doe <john@example.com>"
     },
     {
-      "type": "company",
-      "value": "Acme Corp",
-      "normalized": "acme_corp",
+      "type": "action_item",
+      "value": "Review the proposal by Friday",
+      "normalized": "review_proposal",
       "confidence": 0.9,
       "source": "body",
-      "context": "meeting with Acme Corp team"
+      "context": "Can you review the proposal by Friday?",
+      "assignee": "you",
+      "deadline": "2025-01-10",
+      "priority": "high"
     },
     {
       "type": "date",
@@ -75,7 +94,7 @@ ${sources.join('\n')}
       "normalized": "2025-01-10",
       "confidence": 0.95,
       "source": "body",
-      "context": "let's meet on January 10, 2025"
+      "context": "by Friday (January 10, 2025)"
     }
   ]
 }

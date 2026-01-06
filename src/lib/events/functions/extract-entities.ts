@@ -78,6 +78,7 @@ export const extractEntitiesFromEmail = inngest.createFunction(
           sourceId: emailId,
           sourceType: 'email',
           entities: extractionResult.entities,
+          spam: extractionResult.spam,
           extractedAt: extractionResult.extractedAt.toISOString(),
           cost: extractionResult.cost,
           model: extractionResult.model,
@@ -162,6 +163,8 @@ export const extractEntitiesFromDrive = inngest.createFunction(
           sourceId: fileId,
           sourceType: 'drive',
           entities: extractionResult.entities,
+          // Drive documents are not spam (default classification)
+          spam: { isSpam: false, spamScore: 0 },
           extractedAt: extractionResult.extractedAt.toISOString(),
           cost: extractionResult.cost,
           model: extractionResult.model,

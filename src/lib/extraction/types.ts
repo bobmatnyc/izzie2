@@ -14,7 +14,8 @@ export type EntityType =
   | 'project'
   | 'date'
   | 'topic'
-  | 'location';
+  | 'location'
+  | 'action_item';
 
 /**
  * Extracted entity with confidence score and metadata
@@ -26,6 +27,19 @@ export interface Entity {
   confidence: number; // 0-1 confidence score
   source: 'metadata' | 'body' | 'subject'; // Where entity was found
   context?: string; // Surrounding text for context
+  // Action item specific properties
+  assignee?: string; // Who should do it (for action_item type)
+  deadline?: string; // When it's due (for action_item type)
+  priority?: 'low' | 'medium' | 'high'; // Priority level (for action_item type)
+}
+
+/**
+ * Spam classification for an email
+ */
+export interface SpamClassification {
+  isSpam: boolean; // Is this email spam/promotional/low-value?
+  spamScore: number; // 0-1 confidence score
+  spamReason?: string; // Why it's classified as spam
 }
 
 /**
@@ -34,6 +48,7 @@ export interface Entity {
 export interface ExtractionResult {
   emailId: string;
   entities: Entity[];
+  spam: SpamClassification; // Spam detection
   extractedAt: Date;
   cost: number; // API cost for tracking
   model: string; // Model used
