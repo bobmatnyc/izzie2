@@ -312,13 +312,11 @@ async function startUserSync(
           syncStatus.emailsProcessed = totalProcessed;
           syncStatus.eventsSent = (syncStatus.eventsSent || 0) + 1;
 
-          // Update progress after each email (or batch of 10 for efficiency)
-          if (totalProcessed % 10 === 0 || totalProcessed === maxResults) {
-            await updateCounters(userId, 'email', {
-              processedItems: totalProcessed,
-              entitiesExtracted: entitiesCount,
-            });
-          }
+          // Update progress after EVERY email for real-time UI updates
+          await updateCounters(userId, 'email', {
+            processedItems: totalProcessed,
+            entitiesExtracted: entitiesCount,
+          });
 
           console.log(`[Gmail Sync User] Processed ${totalProcessed}/${maxResults}: ${subject}`);
 

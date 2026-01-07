@@ -26,6 +26,8 @@ interface SourceProgress {
   newestDateExtracted?: string;
   lastRunAt?: string;
   totalCost?: number; // Cost in cents
+  processingRate?: number; // Items per second
+  estimatedSecondsRemaining?: number; // ETA in seconds
 }
 
 const SOURCE_LABELS: Record<ExtractionSource, string> = {
@@ -47,6 +49,23 @@ const STATUS_COLORS: Record<ExtractionStatus, { bg: string; text: string; border
   completed: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
   error: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
 };
+
+/**
+ * Format seconds into human-readable time
+ */
+function formatEta(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  } else if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  } else {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+}
 
 export default function DashboardPage() {
   const [status, setStatus] = useState('');
@@ -462,28 +481,44 @@ export default function DashboardPage() {
                     <div
                       style={{
                         display: 'flex',
-                        gap: '1rem',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
                         fontSize: '0.75rem',
                         color: '#6b7280',
                       }}
                     >
-                      <span>
-                        Progress: {percentage}%
-                      </span>
-                      {sourceProgress && (
-                        <>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        <span>
+                          Progress: {percentage}%
+                        </span>
+                        {sourceProgress && (
+                          <>
+                            <span>
+                              Items: {sourceProgress.processedItems}/{sourceProgress.totalItems}
+                            </span>
+                            <span>
+                              Entities: {sourceProgress.entitiesExtracted}
+                            </span>
+                            {sourceProgress.failedItems > 0 && (
+                              <span style={{ color: '#dc2626' }}>
+                                Failed: {sourceProgress.failedItems}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {/* Show processing rate and ETA for running extractions */}
+                      {sourceProgress?.status === 'running' && sourceProgress.processingRate && sourceProgress.processingRate > 0 && (
+                        <div style={{ display: 'flex', gap: '1rem', color: '#1e40af', fontWeight: '500' }}>
                           <span>
-                            Items: {sourceProgress.processedItems}/{sourceProgress.totalItems}
+                            Rate: {sourceProgress.processingRate.toFixed(1)} items/sec
                           </span>
-                          <span>
-                            Entities: {sourceProgress.entitiesExtracted}
-                          </span>
-                          {sourceProgress.failedItems > 0 && (
-                            <span style={{ color: '#dc2626' }}>
-                              Failed: {sourceProgress.failedItems}
+                          {sourceProgress.estimatedSecondsRemaining && sourceProgress.estimatedSecondsRemaining > 0 && (
+                            <span>
+                              ETA: ~{formatEta(sourceProgress.estimatedSecondsRemaining)}
                             </span>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
