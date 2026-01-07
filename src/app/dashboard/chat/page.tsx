@@ -6,9 +6,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { authClient } from '@/lib/auth-client';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 interface Message {
   id: string;
@@ -33,27 +30,12 @@ const EXAMPLE_QUERIES = [
 ];
 
 export default function ChatPage() {
-  const router = useRouter();
-  const [session, setSession] = useState<any>(null);
-  const [authChecking, setAuthChecking] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Check authentication
-  useEffect(() => {
-    authClient.getSession().then((result) => {
-      if (!result.data?.user) {
-        router.push('/login');
-      } else {
-        setSession(result.data);
-        setAuthChecking(false);
-      }
-    });
-  }, [router]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -62,10 +44,8 @@ export default function ChatPage() {
 
   // Focus input on load
   useEffect(() => {
-    if (!authChecking && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [authChecking]);
+    inputRef.current?.focus();
+  }, []);
 
   /**
    * Send message and stream response
@@ -199,47 +179,16 @@ export default function ChatPage() {
     setError(null);
   };
 
-  if (authChecking) {
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              display: 'inline-block',
-              width: '40px',
-              height: '40px',
-              border: '4px solid #f3f4f6',
-              borderTopColor: '#3b82f6',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-            }}
-          />
-          <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-            Checking authentication...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)' }}>
       {/* Header */}
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111' }}>
-                  Chat Assistant
-                </h1>
-                <Link
-                  href="/"
-                  style={{ fontSize: '0.875rem', color: '#6b7280', textDecoration: 'none' }}
-                >
-                  ← Home
-                </Link>
-              </div>
+              <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111' }}>
+                Chat Assistant
+              </h1>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
                 Ask questions about your emails, calendar, and tasks
               </p>

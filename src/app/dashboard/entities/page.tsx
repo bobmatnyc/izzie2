@@ -7,9 +7,6 @@
 
 import { useState, useEffect } from 'react';
 import { EntityCard } from '@/components/dashboard/EntityCard';
-import { authClient } from '@/lib/auth-client';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 interface Entity {
   id: string;
@@ -61,9 +58,6 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> 
 };
 
 export default function EntitiesPage() {
-  const router = useRouter();
-  const [session, setSession] = useState<any>(null);
-  const [authChecking, setAuthChecking] = useState(true);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -79,19 +73,6 @@ export default function EntitiesPage() {
       setSelectedType(typeParam);
     }
   }, []);
-
-  // Check authentication first
-  useEffect(() => {
-    authClient.getSession().then((result) => {
-      if (!result.data?.user) {
-        // Not authenticated, redirect to login
-        router.push('/login');
-      } else {
-        setSession(result.data);
-        setAuthChecking(false);
-      }
-    });
-  }, [router]);
 
   // Fetch entities
   const fetchEntities = async (type: string = '') => {
@@ -120,12 +101,10 @@ export default function EntitiesPage() {
     }
   };
 
-  // Initial load - only fetch if authenticated
+  // Initial load
   useEffect(() => {
-    if (!authChecking && session?.user) {
-      fetchEntities(selectedType);
-    }
-  }, [selectedType, authChecking, session]);
+    fetchEntities(selectedType);
+  }, [selectedType]);
 
   // Handle type filter click
   const handleTypeClick = (type: string) => {
@@ -154,76 +133,32 @@ export default function EntitiesPage() {
     );
   });
 
-  // Show loading while checking auth
-  if (authChecking) {
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              display: 'inline-block',
-              width: '40px',
-              height: '40px',
-              border: '4px solid #f3f4f6',
-              borderTopColor: '#3b82f6',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-            }}
-          />
-          <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-            Checking authentication...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+    <div>
       {/* Header */}
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb' }}>
         <div
           style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 2rem' }}
         >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <h1
-                  style={{
-                    fontSize: '1.875rem',
-                    fontWeight: '700',
-                    color: '#111',
-                  }}
-                >
-                  Extracted Entities
-                </h1>
-                <Link
-                  href="/"
-                  style={{
-                    fontSize: '0.875rem',
-                    color: '#6b7280',
-                    textDecoration: 'none',
-                  }}
-                >
-                  ← Home
-                </Link>
-              </div>
-              <p
-                style={{
-                  fontSize: '0.875rem',
-                  color: '#6b7280',
-                  marginTop: '0.25rem',
-                }}
-              >
-                Browse and filter entities extracted from your emails
-              </p>
-            </div>
+          <div>
+            <h1
+              style={{
+                fontSize: '1.875rem',
+                fontWeight: '700',
+                color: '#111',
+              }}
+            >
+              Extracted Entities
+            </h1>
+            <p
+              style={{
+                fontSize: '0.875rem',
+                color: '#6b7280',
+                marginTop: '0.25rem',
+              }}
+            >
+              Browse and filter entities extracted from your emails
+            </p>
           </div>
         </div>
       </div>
