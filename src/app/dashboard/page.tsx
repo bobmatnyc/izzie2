@@ -63,19 +63,6 @@ export default function DashboardPage() {
     setSources((prev) => ({ ...prev, [source]: !prev[source] }));
   };
 
-  const dateRangeToDays = (range: DateRange): number | undefined => {
-    switch (range) {
-      case '7d':
-        return 7;
-      case '30d':
-        return 30;
-      case '90d':
-        return 90;
-      case 'all':
-        return undefined;
-    }
-  };
-
   // Fetch extraction status
   const fetchStatus = async () => {
     try {
@@ -127,23 +114,46 @@ export default function DashboardPage() {
         return;
       }
 
-      const days = dateRangeToDays(dateRange);
-      const res = await fetch('/api/extraction/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sources: selectedSources,
-          days,
-        }),
-      });
+      // Start extraction for each selected source
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
 
-      const data = await res.json();
-      if (data.success) {
-        setStatus('Extraction started');
-        fetchStatus();
-      } else {
-        setStatus(`Error: ${data.error}`);
+      for (const source of selectedSources) {
+        try {
+          const res = await fetch('/api/extraction/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              source,
+              dateRange,
+            }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            successCount++;
+          } else {
+            errorCount++;
+            errors.push(`${source}: ${data.error}`);
+          }
+        } catch (error) {
+          errorCount++;
+          errors.push(`${source}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
       }
+
+      // Update status based on results
+      if (successCount > 0 && errorCount === 0) {
+        setStatus(`Extraction started for ${successCount} source(s)`);
+      } else if (successCount > 0 && errorCount > 0) {
+        setStatus(`Started ${successCount} source(s), ${errorCount} failed: ${errors.join(', ')}`);
+      } else {
+        setStatus(`Failed to start extraction: ${errors.join(', ')}`);
+      }
+
+      // Refresh status
+      fetchStatus();
     } catch (error) {
       setStatus('Failed to start extraction');
       console.error('Start error:', error);
