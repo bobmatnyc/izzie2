@@ -89,6 +89,7 @@ export function Navbar({ user }: NavbarProps) {
               <Link
                 key={link.href}
                 href={link.href}
+                className={`nav-link ${isActive(link.href, link.exact) ? 'nav-link-active' : ''}`}
                 style={{
                   fontSize: '0.875rem',
                   fontWeight: isActive(link.href, link.exact) ? '600' : '500',
@@ -99,16 +100,6 @@ export function Navbar({ user }: NavbarProps) {
                     ? '2px solid #6366f1'
                     : '2px solid transparent',
                   transition: 'color 0.2s, border-color 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive(link.href, link.exact)) {
-                    e.currentTarget.style.color = '#374151';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive(link.href, link.exact)) {
-                    e.currentTarget.style.color = '#6b7280';
-                  }
                 }}
               >
                 {link.label}
@@ -218,6 +209,11 @@ export function Navbar({ user }: NavbarProps) {
 
       {/* Responsive Styles */}
       <style jsx global>{`
+        /* Hover effect for nav links (only when not active) */
+        .nav-link:not(.nav-link-active):hover {
+          color: #374151 !important;
+        }
+
         @media (min-width: 768px) {
           .desktop-nav {
             display: flex !important;
