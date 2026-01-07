@@ -5,9 +5,12 @@
  * email, calendar, and drive data sources.
  */
 
-import { dbClient as db } from '@/lib/db';
+import { dbClient } from '@/lib/db';
 import { extractionProgress, type ExtractionProgress, type NewExtractionProgress } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+
+// Get drizzle instance from client
+const getDb = () => dbClient.getDb();
 
 /**
  * Valid extraction sources
@@ -27,7 +30,7 @@ export async function getOrCreateProgress(
   source: ExtractionSource
 ): Promise<ExtractionProgress> {
   // Try to find existing progress
-  const existing = await db
+  const existing = await getDb()
     .select()
     .from(extractionProgress)
     .where(
@@ -50,7 +53,7 @@ export async function getOrCreateProgress(
     chunkSizeDays: 7,
   };
 
-  const result = await db
+  const result = await getDb()
     .insert(extractionProgress)
     .values(newProgress)
     .returning();
@@ -66,7 +69,7 @@ export async function updateProgress(
   source: ExtractionSource,
   updates: Partial<ExtractionProgress>
 ): Promise<ExtractionProgress> {
-  const result = await db
+  const result = await getDb()
     .update(extractionProgress)
     .set({
       ...updates,
@@ -87,7 +90,7 @@ export async function updateProgress(
  * Get all extraction progress for a user
  */
 export async function getAllProgress(userId: string): Promise<ExtractionProgress[]> {
-  return db
+  return getDb()
     .select()
     .from(extractionProgress)
     .where(eq(extractionProgress.userId, userId));
