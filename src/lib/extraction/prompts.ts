@@ -30,18 +30,23 @@ export function buildExtractionPrompt(email: Email, config: ExtractionConfig): s
     sources.push(`**Body:**\n${email.body}`);
   }
 
+  // Context-aware person extraction: restrict to metadata only
+  const personExtractionRule = email.isSent
+    ? '1. **person** - People\'s names (ONLY from To/CC recipient lists - people you sent this email to)'
+    : '1. **person** - People\'s names (ONLY from From/To/CC metadata - NOT from email body text)';
+
   return `Extract structured entities and classify spam from this email.
 
 ${sources.join('\n')}
 
 **Entity Types to Extract:**
-1. **person** - People's names (from To/From/CC and body text)
-2. **company** - Organizations and companies
-3. **project** - Project names and references
-4. **date** - Important dates and deadlines
-5. **topic** - Subject areas and themes
-6. **location** - Geographic locations (cities, countries, addresses)
-7. **action_item** - Tasks, todos, and action items (with assignee/deadline if mentioned)
+${personExtractionRule}
+2. **company** - Organizations and companies (from metadata, subject, and body)
+3. **project** - Project names and references (from metadata, subject, and body)
+4. **date** - Important dates and deadlines (from metadata, subject, and body)
+5. **topic** - Subject areas and themes (from metadata, subject, and body)
+6. **location** - Geographic locations (from metadata, subject, and body)
+7. **action_item** - Tasks, todos, and action items (from subject and body)
 
 **Spam Classification:**
 Classify if this email is spam/promotional/low-value based on:
@@ -60,6 +65,10 @@ Classify if this email is spam/promotional/low-value based on:
 - For dates, include the actual date value if parseable
 - For action_item: extract assignee, deadline, and priority if mentioned
 - Classify spam with score 0-1 (0=definitely not spam, 1=definitely spam)
+
+**CRITICAL**: DO NOT extract person entities from email body text.
+Person entities should ONLY come from email headers (To, CC, From fields).
+Continue extracting company, project, topic, action_item from body text.
 
 **Response Format (JSON only):**
 {

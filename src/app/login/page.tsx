@@ -30,7 +30,7 @@ export default function LoginPage() {
     try {
       const result = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: '/',
+        callbackURL: '/dashboard',
       });
 
       // If signIn returns a redirect URL, navigate to it
@@ -60,21 +60,36 @@ export default function LoginPage() {
         <h1>Welcome!</h1>
         <p>Signed in as: <strong>{session.user.email}</strong></p>
         <p>Name: {session.user.name}</p>
-        <button
-          onClick={handleSignOut}
-          style={{
-            marginTop: '1rem',
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#dc2626',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.5rem',
-            cursor: 'pointer',
-            fontSize: '1rem',
-          }}
-        >
-          Sign Out
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+          <button
+            onClick={() => router.push('/dashboard')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#4285f4',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontSize: '1rem',
+            }}
+          >
+            Go to Dashboard
+          </button>
+          <button
+            onClick={handleSignOut}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontSize: '1rem',
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
       </main>
     );
   }

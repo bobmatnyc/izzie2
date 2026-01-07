@@ -8,15 +8,21 @@
 import { authClient } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 
 interface SignOutButtonProps {
-  variant?: 'default' | 'danger' | 'minimal';
+  variant?: 'default' | 'outline' | 'destructive' | 'ghost';
   redirectTo?: string;
+  className?: string;
+  children?: React.ReactNode;
 }
 
 export function SignOutButton({
-  variant = 'default',
-  redirectTo = '/login'
+  variant = 'ghost',
+  redirectTo = '/login',
+  className,
+  children,
 }: SignOutButtonProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -33,45 +39,19 @@ export function SignOutButton({
     }
   };
 
-  const styles = {
-    default: {
-      padding: '0.5rem 1rem',
-      backgroundColor: '#6b7280',
-      color: 'white',
-      border: 'none',
-      borderRadius: '0.375rem',
-      cursor: isLoading ? 'not-allowed' : 'pointer',
-      fontSize: '0.875rem',
-      fontWeight: '500',
-    },
-    danger: {
-      padding: '0.5rem 1rem',
-      backgroundColor: '#dc2626',
-      color: 'white',
-      border: 'none',
-      borderRadius: '0.375rem',
-      cursor: isLoading ? 'not-allowed' : 'pointer',
-      fontSize: '0.875rem',
-      fontWeight: '500',
-    },
-    minimal: {
-      padding: '0.25rem 0.5rem',
-      backgroundColor: 'transparent',
-      color: '#6b7280',
-      border: '1px solid #d1d5db',
-      borderRadius: '0.25rem',
-      cursor: isLoading ? 'not-allowed' : 'pointer',
-      fontSize: '0.75rem',
-    },
-  };
-
   return (
-    <button
+    <Button
       onClick={handleSignOut}
       disabled={isLoading}
-      style={styles[variant]}
+      variant={variant}
+      className={className}
     >
-      {isLoading ? 'Signing out...' : 'Sign Out'}
-    </button>
+      {children || (
+        <>
+          <LogOut className="h-4 w-4" />
+          {isLoading ? 'Signing out...' : 'Sign Out'}
+        </>
+      )}
+    </Button>
   );
 }
