@@ -5,7 +5,7 @@
  * email, calendar, and drive data sources.
  */
 
-import { db } from '@/lib/db';
+import { dbClient as db } from '@/lib/db';
 import { extractionProgress, type ExtractionProgress, type NewExtractionProgress } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
