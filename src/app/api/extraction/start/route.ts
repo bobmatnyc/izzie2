@@ -54,7 +54,7 @@ async function triggerSync(
 ): Promise<void> {
   // Build sync URL based on source
   const syncUrls: Record<ExtractionSource, string> = {
-    email: '/api/gmail/sync',
+    email: '/api/gmail/sync-user', // Use user OAuth tokens
     calendar: '/api/calendar/sync',
     drive: '/api/drive/sync', // Placeholder - not yet implemented
   };
