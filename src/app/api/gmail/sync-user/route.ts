@@ -19,6 +19,9 @@ import {
   updateCounters,
   markExtractionError,
 } from '@/lib/extraction/progress';
+import { getEntityExtractor } from '@/lib/extraction/entity-extractor';
+import { processExtraction } from '@/lib/graph/graph-builder';
+import type { Email } from '@/lib/google/types';
 
 // In-memory sync status
 let syncStatus: SyncStatus & { eventsSent?: number } = {
@@ -284,12 +287,11 @@ async function startUserSync(
             }
           }
 
-          // Emit event for entity extraction
-          await inngest.send({
-            name: 'izzie/ingestion.email.extracted',
-            data: {
-              userId,
-              emailId: message.id,
+          // Extract entities directly (no Inngest dependency)
+          try {
+            // Build Email object for extraction
+            const email: Email = {
+              id: message.id,
               subject,
               body,
               from: {
@@ -300,15 +302,49 @@ async function startUserSync(
                 name: addr.split('<')[0].trim(),
                 email: addr.match(/<(.+)>/)?.[1] || addr.trim(),
               })),
-              date: new Date(date).toISOString(),
+              date: new Date(date),
               threadId: fullMessage.data.threadId || message.id,
               labels: fullMessage.data.labelIds || [],
               snippet: fullMessage.data.snippet || '',
-            } satisfies EmailContentExtractedPayload,
-          });
+              isSent: (fullMessage.data.labelIds || []).includes('SENT'),
+              hasAttachments: false,
+              internalDate: new Date(date).getTime(),
+            };
+
+            // Extract entities using AI
+            const extractor = getEntityExtractor();
+            const extractionResult = await extractor.extractFromEmail(email);
+
+            console.log(
+              `[Gmail Sync User] Extracted ${extractionResult.entities.length} entities from email ${message.id}`
+            );
+
+            // Save to graph if entities were found
+            if (extractionResult.entities.length > 0) {
+              await processExtraction(extractionResult, {
+                subject,
+                timestamp: new Date(date),
+                threadId: fullMessage.data.threadId || message.id,
+                from: from,
+                to: to.split(',').map((addr) => addr.trim()),
+              });
+
+              console.log(
+                `[Gmail Sync User] Saved ${extractionResult.entities.length} entities to graph for email ${message.id}`
+              );
+
+              // Increment entity count by actual entities extracted
+              entitiesCount += extractionResult.entities.length;
+            }
+          } catch (extractionError) {
+            console.error(
+              `[Gmail Sync User] Entity extraction failed for ${message.id}:`,
+              extractionError
+            );
+            // Continue processing other emails even if extraction fails
+          }
 
           totalProcessed++;
-          entitiesCount++; // Increment for each email sent for extraction
           syncStatus.emailsProcessed = totalProcessed;
           syncStatus.eventsSent = (syncStatus.eventsSent || 0) + 1;
 
