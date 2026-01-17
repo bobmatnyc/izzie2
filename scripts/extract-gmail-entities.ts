@@ -20,7 +20,12 @@
  *   --help              Show help message
  */
 
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load .env.local explicitly (dotenv/config only loads .env)
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 import { dbClient } from '@/lib/db';
 import { users, accounts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
