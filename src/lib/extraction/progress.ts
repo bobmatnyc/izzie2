@@ -198,11 +198,25 @@ export async function resetProgress(
 
 /**
  * Calculate progress percentage
+ *
+ * Special cases:
+ * - If total_items=0 but processed_items>0: Show 100% (items being processed without known total)
+ * - If total_items=0 and processed_items=0: Show 0% (not started)
+ * - Otherwise: Calculate normal percentage
  */
 export function calculateProgress(progress: ExtractionProgress): number {
+  // If we have processed items but no total, consider it complete (100%)
+  // This happens when extraction processes items without knowing total count upfront
+  if ((!progress.totalItems || progress.totalItems === 0) && progress.processedItems > 0) {
+    return 100;
+  }
+
+  // No total items and no processed items = not started
   if (!progress.totalItems || progress.totalItems === 0) {
     return 0;
   }
+
+  // Normal case: calculate percentage
   return Math.round((progress.processedItems / progress.totalItems) * 100);
 }
 
@@ -225,4 +239,72 @@ export function isExtractionActive(progress: ExtractionProgress): boolean {
  */
 export function canStartExtraction(progress: ExtractionProgress): boolean {
   return progress.status === 'idle' || progress.status === 'paused' || progress.status === 'completed';
+}
+
+/**
+ * Check if extraction is stale (stuck in running state)
+ * An extraction is considered stale if:
+ * - Status is 'running' AND
+ * - No activity (updatedAt) for more than 5 minutes OR no updatedAt at all
+ *
+ * Note: We use updatedAt instead of lastRunAt because lastRunAt is set when
+ * extraction starts, but updatedAt is updated during progress updates.
+ */
+export function isExtractionStale(progress: ExtractionProgress): boolean {
+  if (progress.status !== 'running') {
+    return false;
+  }
+
+  // If no updatedAt but status is running, it's definitely stuck
+  if (!progress.updatedAt) {
+    return true;
+  }
+
+  // Check if last activity was more than 5 minutes ago
+  const now = new Date();
+  const lastUpdate = new Date(progress.updatedAt);
+  const minutesSinceLastUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60);
+
+  return minutesSinceLastUpdate > 5;
+}
+
+/**
+ * Get effective status - marks stale extractions as 'error'
+ */
+export function getEffectiveStatus(progress: ExtractionProgress): ExtractionStatus {
+  if (isExtractionStale(progress)) {
+    return 'error';
+  }
+  return progress.status;
+}
+
+/**
+ * Reset stale extractions across all users and sources
+ * Returns count of reset extractions
+ */
+export async function resetStaleExtractions(): Promise<number> {
+  const db = getDb();
+
+  // Find all running extractions
+  const allRunning = await db
+    .select()
+    .from(extractionProgress)
+    .where(eq(extractionProgress.status, 'running'));
+
+  // Filter to stale ones
+  const staleExtractions = allRunning.filter(isExtractionStale);
+
+  // Reset each stale extraction
+  for (const extraction of staleExtractions) {
+    await updateProgress(extraction.userId, extraction.source as ExtractionSource, {
+      status: 'error',
+      updatedAt: new Date(),
+    });
+  }
+
+  if (staleExtractions.length > 0) {
+    console.log(`[Extraction Progress] Reset ${staleExtractions.length} stale extractions`);
+  }
+
+  return staleExtractions.length;
 }
