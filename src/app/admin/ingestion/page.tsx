@@ -44,7 +44,7 @@ export default function IngestionDashboard() {
   const [isSyncingEmail, setIsSyncingEmail] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // Fetch ingestion status
   const fetchStatus = async () => {
@@ -225,7 +225,7 @@ export default function IngestionDashboard() {
                 Monitor and control email and Drive ingestion pipeline
               </p>
             </div>
-            <SignOutButton variant="minimal" />
+            <SignOutButton variant="ghost" />
           </div>
         </div>
       </div>
@@ -235,7 +235,7 @@ export default function IngestionDashboard() {
         {/* Last Update */}
         <div style={{ marginBottom: '1.5rem', textAlign: 'right' }}>
           <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-            Last updated: {lastUpdate.toLocaleTimeString()}
+            Last updated: {lastUpdate ? lastUpdate.toLocaleTimeString() : '--:--:--'}
           </span>
         </div>
 

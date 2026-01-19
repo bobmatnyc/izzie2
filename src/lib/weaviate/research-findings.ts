@@ -16,9 +16,18 @@
  */
 
 import { getWeaviateClient } from './client';
-import type { ResearchFinding as ResearchFindingType } from '@/agents/base/types';
+import type { ResearchFinding } from '@/agents/research/types';
 
 const LOG_PREFIX = '[Weaviate Research Findings]';
+
+/**
+ * Extended finding type with storage metadata
+ */
+export interface StoredResearchFinding extends ResearchFinding {
+  id: string;
+  taskId: string;
+  createdAt: Date;
+}
 
 /**
  * Weaviate collection name for research findings
@@ -26,12 +35,12 @@ const LOG_PREFIX = '[Weaviate Research Findings]';
 export const RESEARCH_FINDING_COLLECTION = 'ResearchFinding';
 
 /**
- * Research finding interface for storage
+ * Internal interface for Weaviate storage format (snake_case fields, different confidence scale)
  */
-interface StoredResearchFinding {
+interface WeaviateResearchFinding {
   claim: string;
   evidence: string;
-  confidence: number; // 0-100
+  confidence: number; // 0-100 (stored as percentage)
   taskId: string;
   sourceUrl: string;
   sourceTitle: string;
@@ -119,7 +128,7 @@ export async function initResearchFindingSchema(): Promise<void> {
  * Save a single research finding to Weaviate
  */
 export async function saveFinding(
-  finding: ResearchFindingType,
+  finding: ResearchFinding,
   taskId: string,
   userId: string,
   sourceUrl: string = '',
@@ -156,7 +165,7 @@ export async function saveFinding(
  * Save multiple research findings in batch
  */
 export async function saveFindings(
-  findings: ResearchFindingType[],
+  findings: ResearchFinding[],
   taskId: string,
   userId: string
 ): Promise<string[]> {
@@ -206,7 +215,7 @@ export async function searchFindings(
     taskId?: string;
     minConfidence?: number;
   }
-): Promise<ResearchFindingType[]> {
+): Promise<StoredResearchFinding[]> {
   const client = await getWeaviateClient();
   const limit = options?.limit || 20;
 
@@ -233,8 +242,8 @@ export async function searchFindings(
       })
       .slice(0, limit);
 
-    // Convert to ResearchFinding objects
-    const findings: ResearchFindingType[] = filtered.map((obj: any) => ({
+    // Convert to StoredResearchFinding objects
+    const findings: StoredResearchFinding[] = filtered.map((obj: any) => ({
       id: obj.uuid,
       taskId: obj.properties.taskId,
       claim: obj.properties.claim,
@@ -259,7 +268,7 @@ export async function searchFindings(
 export async function getFindingsByTask(
   taskId: string,
   userId: string
-): Promise<ResearchFindingType[]> {
+): Promise<StoredResearchFinding[]> {
   const client = await getWeaviateClient();
 
   console.log(`${LOG_PREFIX} Fetching findings for task ${taskId}...`);
@@ -283,7 +292,7 @@ export async function getFindingsByTask(
     });
 
     // Filter by taskId and userId
-    const findings: ResearchFindingType[] = result.objects
+    const findings: StoredResearchFinding[] = result.objects
       .filter(
         (obj: any) => obj.properties.taskId === taskId && obj.properties.userId === userId
       )

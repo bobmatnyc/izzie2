@@ -9,8 +9,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { retrievalService } from '@/lib/retrieval';
 
-export const runtime = 'nodejs';
-
 /**
  * POST /api/retrieval/search
  *

@@ -3,7 +3,7 @@
  * Utilities for creating mock data and assertions
  */
 
-import { vi } from 'vitest';
+import { vi, expect } from 'vitest';
 import type {
   GrantAuthorizationParams,
   CheckAuthorizationParams,

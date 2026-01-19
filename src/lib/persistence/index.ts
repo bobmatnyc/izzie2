@@ -28,8 +28,8 @@ import {
   type MemoryUpdateRequest,
   type MemoryDeletionRequest,
   type PersistenceConfig,
-  type VectorStoreError,
-  type GraphStoreError,
+  VectorStoreError,
+  GraphStoreError,
   type StorageStatus,
   type HealthCheck,
 } from './types';

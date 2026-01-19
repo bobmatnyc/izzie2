@@ -37,6 +37,16 @@ import { SchedulingAction } from './types';
  */
 export class SchedulerAgent {
   /**
+   * Simple schedule handler for event routing
+   * Called by SchedulerHandler wrapper
+   */
+  async schedule(): Promise<void> {
+    // Placeholder for webhook event scheduling
+    // Actual scheduling happens through processRequest or processNaturalLanguage
+    console.log('[Scheduler Agent] schedule() called - placeholder for event routing');
+  }
+
+  /**
    * Process a scheduling request
    */
   async processRequest(request: SchedulerRequest): Promise<SchedulingResponse> {

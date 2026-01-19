@@ -234,7 +234,7 @@ export class EnhancedMemoryService {
         id: persistenceResult.data.id,
         userId: persistenceResult.data.userId,
         content: persistenceResult.data.content,
-        metadata: persistenceResult.data.metadata,
+        metadata: persistenceResult.data.metadata ?? {},
         createdAt: persistenceResult.data.createdAt,
       };
     } catch (error) {

@@ -7,8 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSession, getGoogleTokens } from '@/lib/auth';
 import { getEntityExtractor } from '@/lib/extraction/entity-extractor';
 import { dbClient } from '@/lib/db/client';
 import { memoryEntries, users } from '@/lib/db/schema';
@@ -31,9 +30,9 @@ export async function POST(request: Request) {
     });
 
     // 0. Get authenticated session
-    const session = await getServerSession(authOptions);
+    const session = await getSession(request);
 
-    if (!session?.accessToken) {
+    if (!session?.user) {
       return NextResponse.json(
         { error: 'Not authenticated. Please sign in first.' },
         { status: 401 }
@@ -59,9 +58,10 @@ export async function POST(request: Request) {
     const dbUserId = userResult[0].id;
     console.log('[Batch Extract Tasks] Found user:', { email: userEmail, id: dbUserId });
 
-    // 2. Initialize OAuth2 client
+    // 2. Initialize OAuth2 client with tokens from accounts table
+    const tokens = await getGoogleTokens(dbUserId);
     const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token: session.accessToken });
+    oauth2Client.setCredentials({ access_token: tokens.accessToken });
 
     // Initialize Tasks API
     const tasks = google.tasks({ version: 'v1', auth: oauth2Client });
@@ -143,19 +143,21 @@ export async function POST(request: Request) {
       const content = buildTaskContent(task);
 
       // Create pseudo-email for extraction
+      const taskDate = task.updated ? new Date(task.updated) : new Date();
       const taskAsEmail = {
         id: task.id,
         subject: task.title,
         body: content,
         from: { name: 'Google Tasks', email: userEmail },
         to: [],
-        date: task.updated ? new Date(task.updated) : new Date(),
+        date: taskDate,
         threadId: task.listId,
         labels: [task.listTitle, task.status],
         snippet: task.notes?.substring(0, 100) || task.title,
         isSent: false,
         isRead: task.status === 'completed',
         hasAttachments: false,
+        internalDate: taskDate.getTime(),
       };
 
       const result = await extractor.extractFromEmail(taskAsEmail);
@@ -205,7 +207,7 @@ export async function POST(request: Request) {
             due: result.task.due,
             updated: result.task.updated,
             completed: result.task.completed,
-            entities: result.entities,
+            entities: result.entities as unknown as Record<string, unknown>,
             extractionModel: result.model,
             extractionCost: result.cost,
             spam: result.spam,
