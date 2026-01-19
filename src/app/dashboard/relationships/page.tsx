@@ -8,8 +8,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
-// Dynamically import ForceGraph2D to avoid SSR issues
-const ForceGraph2D = dynamic(() => import('react-force-graph').then(mod => mod.ForceGraph2D), {
+// Dynamically import ForceGraph2D to avoid SSR issues (A-Frame not defined error)
+// Use react-force-graph-2d directly instead of react-force-graph to avoid A-Frame dependency
+const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
   ssr: false,
   loading: () => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '500px' }}>
