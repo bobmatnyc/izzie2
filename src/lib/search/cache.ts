@@ -35,7 +35,7 @@ export async function getCachedSource(
       conditions.push(eq(researchSources.taskId, taskId));
     }
 
-    const [source] = await db
+    const [source] = await getDb()
       .select()
       .from(researchSources)
       .where(and(...conditions))
@@ -88,7 +88,7 @@ export async function cacheSource(
 
     if (existing) {
       // Update existing source
-      const [updated] = await db
+      const [updated] = await getDb()
         .update(researchSources)
         .set({
           ...source,
@@ -134,7 +134,7 @@ export async function pruneExpiredCache(): Promise<number> {
   try {
     const now = new Date();
 
-    const deleted = await db
+    const deleted = await getDb()
       .delete(researchSources)
       .where(lt(researchSources.expiresAt, now))
       .returning();
@@ -165,7 +165,7 @@ export async function getCacheStats(taskId?: string): Promise<{
   try {
     const conditions = taskId ? [eq(researchSources.taskId, taskId)] : [];
 
-    const sources = await db
+    const sources = await getDb()
       .select()
       .from(researchSources)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
@@ -215,7 +215,7 @@ export async function getCacheStats(taskId?: string): Promise<{
  */
 export async function clearTaskCache(taskId: string): Promise<number> {
   try {
-    const deleted = await db
+    const deleted = await getDb()
       .delete(researchSources)
       .where(eq(researchSources.taskId, taskId))
       .returning();

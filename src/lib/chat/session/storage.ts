@@ -108,7 +108,7 @@ export class SessionStorage {
   async createSession(userId: string, title?: string): Promise<ChatSession> {
     console.log(`${LOG_PREFIX} Creating new session for user ${userId}...`);
 
-    const [record] = await db
+    const [record] = await getDb()
       .insert(chatSessions)
       .values({
         userId,
@@ -132,7 +132,7 @@ export class SessionStorage {
   async getSession(sessionId: string): Promise<ChatSession | null> {
     console.log(`${LOG_PREFIX} Fetching session ${sessionId}...`);
 
-    const [record] = await db
+    const [record] = await getDb()
       .select()
       .from(chatSessions)
       .where(eq(chatSessions.id, sessionId))
@@ -152,7 +152,7 @@ export class SessionStorage {
   async getUserSessions(userId: string, limit = 20): Promise<ChatSession[]> {
     console.log(`${LOG_PREFIX} Fetching sessions for user ${userId} (limit: ${limit})...`);
 
-    const records = await db
+    const records = await getDb()
       .select()
       .from(chatSessions)
       .where(eq(chatSessions.userId, userId))
@@ -172,7 +172,7 @@ export class SessionStorage {
 
     const updateData = sessionToRecord(session);
 
-    await db
+    await getDb()
       .update(chatSessions)
       .set(updateData)
       .where(eq(chatSessions.id, session.id));
@@ -195,7 +195,7 @@ export class SessionStorage {
    * Check if session belongs to user (for authorization)
    */
   async sessionBelongsToUser(sessionId: string, userId: string): Promise<boolean> {
-    const [record] = await db
+    const [record] = await getDb()
       .select({ id: chatSessions.id })
       .from(chatSessions)
       .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
