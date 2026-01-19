@@ -11,7 +11,10 @@ import {
   type NewResearchSource,
 } from '../db';
 
-const db = dbClient.getDb();
+// Get drizzle instance lazily (for build compatibility)
+function getDb() {
+  return dbClient.getDb();
+}
 
 // Default TTL values
 const SEARCH_RESULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -112,7 +115,7 @@ export async function cacheSource(
         expiresAt,
       };
 
-      const [created] = await db.insert(researchSources).values(newSource).returning();
+      const [created] = await getDb().insert(researchSources).values(newSource).returning();
 
       console.log(`[Cache] Cached new source: ${source.url}`);
       return created;

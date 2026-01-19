@@ -12,8 +12,10 @@ import type { ChatSession, ChatMessage, CurrentTask } from './types';
 
 const LOG_PREFIX = '[SessionStorage]';
 
-// Get drizzle instance
-const db = dbClient.getDb();
+// Get drizzle instance lazily (for build compatibility)
+function getDb() {
+  return dbClient.getDb();
+}
 
 /**
  * Convert database record to ChatSession type
@@ -184,7 +186,7 @@ export class SessionStorage {
   async deleteSession(sessionId: string): Promise<void> {
     console.log(`${LOG_PREFIX} Deleting session ${sessionId}...`);
 
-    await db.delete(chatSessions).where(eq(chatSessions.id, sessionId));
+    await getDb().delete(chatSessions).where(eq(chatSessions.id, sessionId));
 
     console.log(`${LOG_PREFIX} Deleted session ${sessionId}`);
   }
