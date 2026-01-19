@@ -68,7 +68,7 @@ describe('EventDispatcher', () => {
     classification: {
       category: 'TASK',
       confidence: 0.85,
-      actions: ['review'],
+      actions: ['notify'],
       reasoning: 'Task management event',
     },
     originalPayload: {},
@@ -76,12 +76,12 @@ describe('EventDispatcher', () => {
 
   const communicationEvent: ClassifiedEvent = {
     webhookId: 'test-003',
-    source: 'slack',
+    source: 'google',
     timestamp: '2025-01-05T10:10:00Z',
     classification: {
       category: 'COMMUNICATION',
       confidence: 0.9,
-      actions: ['respond', 'notify'],
+      actions: ['notify'],
       reasoning: 'Communication event detected',
     },
     originalPayload: {},
@@ -91,9 +91,9 @@ describe('EventDispatcher', () => {
     registry = new HandlerRegistry();
 
     // Register mock handlers matching default routing rules
-    registry.register(new MockHandler('scheduler'));
-    registry.register(new MockHandler('notifier'));
-    registry.register(new MockHandler('orchestrator'));
+    registry.register('scheduler', new MockHandler('scheduler'));
+    registry.register('notifier', new MockHandler('notifier'));
+    registry.register('orchestrator', new MockHandler('orchestrator'));
 
     dispatcher = new EventDispatcher(registry);
   });
@@ -222,7 +222,7 @@ describe('EventDispatcher', () => {
     it('should fallback to orchestrator when handler not registered', async () => {
       // Create dispatcher with minimal registry
       const minimalRegistry = new HandlerRegistry();
-      minimalRegistry.register(new MockHandler('orchestrator'));
+      minimalRegistry.register('orchestrator', new MockHandler('orchestrator'));
       const minimalDispatcher = new EventDispatcher(minimalRegistry);
 
       const result = await minimalDispatcher.dispatch(calendarEvent);
@@ -234,7 +234,7 @@ describe('EventDispatcher', () => {
     it('should handle handler execution failures gracefully', async () => {
       // Register a failing handler
       const failingHandler = new MockHandler('failing-handler', false);
-      registry.register(failingHandler);
+      registry.register('failing-handler', failingHandler);
 
       // Add rule to route to failing handler
       dispatcher.addRule({

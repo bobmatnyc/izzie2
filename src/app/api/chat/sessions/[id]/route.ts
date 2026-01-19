@@ -11,9 +11,9 @@ import { getSessionManager, getSessionStorage } from '@/lib/chat/session';
 const LOG_PREFIX = '[Session API]';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
 
     console.log(`${LOG_PREFIX} Fetching session ${sessionId} for user ${userId}`);
 
@@ -83,7 +83,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
 
     console.log(`${LOG_PREFIX} Deleting session ${sessionId} for user ${userId}`);
 

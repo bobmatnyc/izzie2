@@ -6,7 +6,7 @@
 /**
  * Agent status types
  */
-export type AgentStatus = 'idle' | 'running' | 'completed' | 'failed' | 'paused';
+export type AgentStatus = 'idle' | 'pending' | 'running' | 'completed' | 'failed' | 'paused';
 
 /**
  * Agent task with progress tracking

@@ -64,7 +64,8 @@ async function main() {
 
     entities.forEach((e: any) => entityTypes.add(e.type));
 
-    console.log(`  ${idx + 1}. ${memory.source} (${memory.id.substring(0, 8)}...)`);
+    const source = metadata?.source || 'unknown';
+    console.log(`  ${idx + 1}. ${source} (${memory.id.substring(0, 8)}...)`);
     console.log(`     Entities: ${entities.length}`);
     console.log(`     Created: ${new Date(memory.createdAt).toLocaleString()}`);
   });

@@ -324,10 +324,12 @@ export class PersistenceService {
    */
   private async writeToVectorStore(request: MemoryStorageRequest): Promise<MemoryEntry> {
     try {
+      // If no embedding provided, use empty array placeholder (will be updated later)
+      const embedding = request.embedding ?? [];
       return await vectorOps.insertVector({
         userId: request.userId,
         content: request.content,
-        embedding: request.embedding,
+        embedding,
         conversationId: request.conversationId,
         summary: request.summary,
         metadata: request.metadata,

@@ -120,7 +120,7 @@ export async function POST(request: Request) {
             subject: email.subject,
             from: email.from.email,
             date: email.date.toISOString(),
-            entities: result.entities,
+            entities: result.entities as unknown as Record<string, unknown>,
             extractionModel: result.model,
             extractionCost: result.cost,
             spam: result.spam,

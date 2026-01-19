@@ -22,6 +22,9 @@ interface MCPServerRow {
   url: string | null;
   headers: Record<string, string> | null;
   enabled: boolean;
+  created_at: Date;
+  updated_at: Date;
+  [key: string]: unknown;
 }
 
 interface RouteContext {
@@ -63,6 +66,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       url: row.url || undefined,
       headers: row.headers || undefined,
       enabled: row.enabled,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
 
     if (!config.enabled) {
@@ -83,7 +88,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     );
 
     return NextResponse.json({
-      status: status.status,
+      connected: status.connected,
       tools: status.tools,
       resources: status.resources,
       error: status.error,

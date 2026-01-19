@@ -11,9 +11,9 @@ import { inngest } from '@/lib/events';
 const LOG_PREFIX = '[Research Resume API]';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     taskId: string;
-  };
+  }>;
 }
 
 /**
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Require authentication
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const { taskId } = params;
+    const { taskId } = await params;
 
     console.log(`${LOG_PREFIX} Resuming task ${taskId} for user ${userId}`);
 

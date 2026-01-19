@@ -29,7 +29,7 @@ export interface PersistenceResult<T = unknown> {
 export interface MemoryStorageRequest {
   userId: string;
   content: string;
-  embedding: number[];
+  embedding?: number[];  // Optional - will be generated later if not provided
   conversationId?: string;
   summary?: string;
   metadata?: Record<string, unknown>;

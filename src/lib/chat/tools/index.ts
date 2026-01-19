@@ -45,12 +45,13 @@ export async function executeChatTool(
  * @returns Array of tool definitions
  */
 export function getChatToolDefinitions() {
+  const { zodToJsonSchema } = require('zod-to-json-schema');
   return Object.entries(chatTools).map(([name, tool]) => ({
     type: 'function' as const,
     function: {
       name,
       description: tool.description,
-      parameters: tool.parameters,
+      parameters: zodToJsonSchema(tool.parameters, { target: 'openAi' }) as Record<string, unknown>,
     },
   }));
 }

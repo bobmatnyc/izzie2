@@ -113,7 +113,6 @@ async function resetExtractionProgress(): Promise<void> {
         totalItems: 0,
         entitiesExtracted: 0,
         failedItems: 0,
-        lastError: null,
         oldestDateExtracted: null,
         newestDateExtracted: null,
       })

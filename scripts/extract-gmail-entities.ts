@@ -489,7 +489,7 @@ async function extractForUser(
                   content: m.content,
                   category: m.category,
                   sourceType: 'email',
-                  sourceId: message.id,
+                  sourceId: message.id ?? undefined,
                   sourceDate: emailDate,
                   importance: m.importance,
                   confidence: m.confidence,

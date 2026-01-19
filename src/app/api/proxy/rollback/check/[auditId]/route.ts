@@ -14,11 +14,11 @@ import { canRollback } from '@/lib/proxy/rollback-service';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
   try {
     const session = await requireAuth(request);
-    const auditEntryId = params.auditId;
+    const { auditId: auditEntryId } = await params;
 
     const eligibility = await canRollback(auditEntryId);
 

@@ -28,7 +28,6 @@ import { users, accounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
-import { getEntityExtractor } from '@/lib/extraction/entity-extractor';
 import { saveEntities } from '@/lib/weaviate';
 import {
   getOrCreateProgress,
@@ -40,8 +39,53 @@ import {
 import { getUserIdentity, normalizeToCurrentUser } from '@/lib/extraction/user-identity';
 import { deduplicateWithStats } from '@/lib/extraction/deduplication';
 import { applyPostFilters, logFilterStats } from '@/lib/extraction/post-filters';
+import type { Entity } from '@/lib/extraction/types';
 
 const LOG_PREFIX = '[ExtractContacts]';
+
+/**
+ * Build entities directly from structured contact data
+ * Contacts are already structured, so we don't need AI extraction
+ */
+function buildEntitiesFromContact(contact: {
+  names?: Array<{ displayName?: string | null }>;
+  emailAddresses?: Array<{ value?: string | null }>;
+  phoneNumbers?: Array<{ value?: string | null }>;
+  organizations?: Array<{ name?: string | null; title?: string | null }>;
+  biographies?: Array<{ value?: string | null }>;
+}): Entity[] {
+  const entities: Entity[] = [];
+
+  // Extract person entity from contact name
+  const name = contact.names?.[0]?.displayName;
+  if (name && name.trim().length > 0) {
+    entities.push({
+      type: 'person',
+      value: name,
+      normalized: name.toLowerCase().replace(/\s+/g, '_'),
+      confidence: 1.0, // High confidence for structured data
+      source: 'metadata',
+      context: `Google Contact: ${name}`,
+    });
+  }
+
+  // Extract company entities from organizations
+  const organizations = contact.organizations || [];
+  for (const org of organizations) {
+    if (org.name && org.name.trim().length > 0) {
+      entities.push({
+        type: 'company',
+        value: org.name,
+        normalized: org.name.toLowerCase().replace(/\s+/g, '_'),
+        confidence: 0.95,
+        source: 'metadata',
+        context: org.title ? `Organization (${org.title})` : 'Organization',
+      });
+    }
+  }
+
+  return entities;
+}
 
 // Parse command line arguments
 interface Args {
@@ -225,9 +269,6 @@ async function extractForUser(
     const userIdentity = await getUserIdentity(userId);
     console.log(`${LOG_PREFIX} ✅ User identity loaded: ${userIdentity.primaryName} (${userIdentity.primaryEmail})`);
 
-    // Initialize entity extractor with user identity
-    const extractor = getEntityExtractor(undefined, userIdentity);
-
     // Fetch contacts
     console.log(`${LOG_PREFIX} 👥 Fetching contacts...`);
     const response = await people.people.connections.list({
@@ -283,42 +324,14 @@ async function extractForUser(
       }
 
       try {
-        // Build contact summary for extraction
+        // Build contact summary for logging
         const name = contact.names?.[0]?.displayName || 'Unknown';
-        const emails = contact.emailAddresses?.map(e => e.value).filter(Boolean) || [];
-        const phones = contact.phoneNumbers?.map(p => p.value).filter(Boolean) || [];
-        const organizations = contact.organizations?.map(o => o.name).filter(Boolean) || [];
-        const bio = contact.biographies?.[0]?.value || '';
 
-        // Build text representation of contact
-        const contactText = [
-          `Name: ${name}`,
-          emails.length > 0 ? `Emails: ${emails.join(', ')}` : '',
-          phones.length > 0 ? `Phones: ${phones.join(', ')}` : '',
-          organizations.length > 0 ? `Organizations: ${organizations.join(', ')}` : '',
-          bio ? `Bio: ${bio}` : '',
-        ].filter(Boolean).join('\n');
-
-        // Extract entities from contact data
-        let extractionResult;
-        try {
-          extractionResult = await extractor.extractFromText(contactText, {
-            sourceType: 'contact',
-            sourceId: contact.resourceName || `contact-${totalProcessed}`,
-          });
-          totalCost += extractionResult.cost;
-        } catch (error) {
-          console.error(`${LOG_PREFIX} ❌ Failed to extract entities from contact ${name}:`, error);
-          const currentProgress = await getOrCreateProgress(userId, 'contacts');
-          await updateCounters(userId, 'contacts', {
-            failedItems: (currentProgress.failedItems || 0) + 1,
-          });
-          totalProcessed++;
-          continue;
-        }
+        // Build entities directly from structured contact data (no AI needed)
+        const extractedEntities = buildEntitiesFromContact(contact);
 
         // Post-process entities
-        let processedEntities = normalizeToCurrentUser(extractionResult.entities, userIdentity);
+        let processedEntities = normalizeToCurrentUser(extractedEntities, userIdentity);
 
         const filterResult = applyPostFilters(processedEntities, {
           strictNameFormat: false,
@@ -337,7 +350,7 @@ async function extractForUser(
 
         const [deduplicatedEntities, dedupeStats] = deduplicateWithStats(processedEntities);
 
-        const originalCount = extractionResult.entities.length;
+        const originalCount = extractedEntities.length;
         const entityCount = deduplicatedEntities.length;
         const progress = `[${totalProcessed + 1}/${contacts.length}]`;
 

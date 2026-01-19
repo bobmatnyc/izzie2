@@ -94,9 +94,9 @@ describe('POC-1 Validation Tests', () => {
 
     // Set up handlers matching default routing rules
     registry = new HandlerRegistry();
-    registry.register(new ValidationHandler('scheduler'));
-    registry.register(new ValidationHandler('notifier'));
-    registry.register(new ValidationHandler('orchestrator'));
+    registry.register('scheduler', new ValidationHandler('scheduler'));
+    registry.register('notifier', new ValidationHandler('notifier'));
+    registry.register('orchestrator', new ValidationHandler('orchestrator'));
 
     // Set up dispatcher
     dispatcher = new EventDispatcher(registry);
@@ -140,12 +140,15 @@ describe('POC-1 Validation Tests', () => {
           // Create classified event
           const classifiedEvent: ClassifiedEvent = {
             webhookId: event.webhookId,
-            source: event.source,
+            source: event.source as 'github' | 'linear' | 'google',
             timestamp: event.timestamp,
             classification: {
               category: classification.category,
               confidence: classification.confidence,
-              actions: classification.actions,
+              actions: classification.actions.filter(
+                (a): a is 'schedule' | 'notify' | 'ignore' =>
+                  a === 'schedule' || a === 'notify' || a === 'ignore'
+              ),
             },
             originalPayload: event.payload,
           };

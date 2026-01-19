@@ -520,9 +520,13 @@ export class SchedulerAgent {
 
     switch (action) {
       case SchedulingAction.SCHEDULE: {
-        const participants = extractedData.participants
+        const resolvedParticipants = extractedData.participants
           ? await resolveParticipants(extractedData.participants, userId)
           : [];
+        const participants = resolvedParticipants.map((p) => ({
+          ...p,
+          isRequired: true,
+        }));
 
         // Parse time reference if provided
         const dateRange = extractedData.timeReference
@@ -549,9 +553,13 @@ export class SchedulerAgent {
       }
 
       case SchedulingAction.FIND_TIME: {
-        const participants = extractedData.participants
+        const resolvedParticipants = extractedData.participants
           ? await resolveParticipants(extractedData.participants, userId)
           : [];
+        const participants = resolvedParticipants.map((p) => ({
+          ...p,
+          isRequired: true,
+        }));
 
         const dateRange = extractedData.timeReference
           ? parseTimeReference(extractedData.timeReference, extractedData.duration || 60)

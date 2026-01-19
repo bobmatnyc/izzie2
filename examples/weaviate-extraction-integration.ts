@@ -125,9 +125,9 @@ Jane`,
     snippet: 'Meeting with John Doe at Acme Corp',
     date: new Date('2026-01-15'),
     labels: ['INBOX'],
-    isRead: false,
-    isStarred: false,
+    isSent: false,
     hasAttachments: false,
+    internalDate: new Date('2026-01-15').getTime(),
   };
 
   const userId = 'user-789';

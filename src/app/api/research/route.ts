@@ -28,7 +28,7 @@ const createResearchSchema = z.object({
  * Query schema for listing tasks
  */
 const listTasksSchema = z.object({
-  status: z.enum(['pending', 'running', 'completed', 'failed', 'paused']).optional(),
+  status: z.enum(['idle', 'running', 'completed', 'failed', 'paused']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Invalid request data',
-          details: error.errors,
+          details: error.issues,
         },
         { status: 400 }
       );
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Invalid query parameters',
-          details: error.errors,
+          details: error.issues,
         },
         { status: 400 }
       );

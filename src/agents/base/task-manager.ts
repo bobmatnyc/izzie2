@@ -6,7 +6,7 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { dbClient } from '@/lib/db';
 import { agentTasks, type AgentTask, type NewAgentTask } from '@/lib/db/schema';
-import type { AgentStatus, AgentContext } from './types';
+import type { AgentStatus, AgentContext, AgentTask as AgentTaskInterface } from './types';
 
 /**
  * Task filter options
@@ -330,8 +330,11 @@ export class TaskManager {
   createContext(task: AgentTask): AgentContext {
     const self = this;
 
+    // Cast DB schema AgentTask to interface AgentTask (structurally compatible)
+    const taskInterface = task as unknown as AgentTaskInterface;
+
     return {
-      task,
+      task: taskInterface,
       userId: task.userId,
       sessionId: task.sessionId || undefined,
 

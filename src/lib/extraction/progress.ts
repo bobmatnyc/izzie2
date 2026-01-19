@@ -15,7 +15,7 @@ const getDb = () => dbClient.getDb();
 /**
  * Valid extraction sources
  */
-export type ExtractionSource = 'email' | 'calendar' | 'drive';
+export type ExtractionSource = 'email' | 'calendar' | 'drive' | 'contacts';
 
 /**
  * Valid extraction statuses
@@ -205,19 +205,22 @@ export async function resetProgress(
  * - Otherwise: Calculate normal percentage
  */
 export function calculateProgress(progress: ExtractionProgress): number {
+  const processedItems = progress.processedItems ?? 0;
+  const totalItems = progress.totalItems ?? 0;
+
   // If we have processed items but no total, consider it complete (100%)
   // This happens when extraction processes items without knowing total count upfront
-  if ((!progress.totalItems || progress.totalItems === 0) && progress.processedItems > 0) {
+  if (totalItems === 0 && processedItems > 0) {
     return 100;
   }
 
   // No total items and no processed items = not started
-  if (!progress.totalItems || progress.totalItems === 0) {
+  if (totalItems === 0) {
     return 0;
   }
 
   // Normal case: calculate percentage
-  return Math.round((progress.processedItems / progress.totalItems) * 100);
+  return Math.round((processedItems / totalItems) * 100);
 }
 
 /**
@@ -275,7 +278,7 @@ export function getEffectiveStatus(progress: ExtractionProgress): ExtractionStat
   if (isExtractionStale(progress)) {
     return 'error';
   }
-  return progress.status;
+  return progress.status as ExtractionStatus;
 }
 
 /**

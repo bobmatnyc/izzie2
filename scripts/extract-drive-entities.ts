@@ -268,8 +268,8 @@ async function extractForUser(
     const userIdentity = await getUserIdentity(userId);
     console.log(`${LOG_PREFIX} ✅ User identity loaded: ${userIdentity.primaryName} (${userIdentity.primaryEmail})`);
 
-    // Initialize entity extractor
-    const extractor = getDriveEntityExtractor(undefined, userIdentity);
+    // Initialize entity extractor (note: user identity is not used by drive extractor)
+    const extractor = getDriveEntityExtractor();
 
     // Build query and fetch files
     const query = buildQuery(options.sinceDays);
@@ -366,7 +366,7 @@ async function extractForUser(
             displayName: o.displayName || '',
             emailAddress: o.emailAddress || '',
           })),
-          webViewLink: file.webViewLink,
+          webViewLink: file.webViewLink ?? undefined,
         };
 
         let extractionResult;

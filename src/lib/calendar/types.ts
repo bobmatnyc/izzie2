@@ -94,6 +94,12 @@ export interface CalendarEvent {
       label?: string;
       password?: string;
     }>;
+    createRequest?: {
+      requestId: string;
+      conferenceSolutionKey?: {
+        type: string;
+      };
+    };
   };
   reminders?: {
     useDefault?: boolean;

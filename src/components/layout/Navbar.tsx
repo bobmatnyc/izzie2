@@ -129,7 +129,7 @@ export function Navbar({ user }: NavbarProps) {
                 </div>
               </div>
             )}
-            <SignOutButton variant="minimal" />
+            <SignOutButton variant="ghost" />
           </div>
 
           {/* Mobile Menu Button */}
@@ -201,7 +201,7 @@ export function Navbar({ user }: NavbarProps) {
                   {user.name || user.email}
                 </div>
               )}
-              <SignOutButton variant="minimal" />
+              <SignOutButton variant="ghost" />
             </div>
           </div>
         )}

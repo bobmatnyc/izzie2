@@ -138,7 +138,7 @@ Entities: ${JSON.stringify(result.entities, null, 2)}`;
               email: a.email,
               displayName: a.displayName,
             })),
-            entities: result.entities,
+            entities: result.entities as unknown as Record<string, unknown>,
             extractionModel: result.model,
             extractionCost: result.cost,
             entityTypes: [...new Set(result.entities.map((e) => e.type))],

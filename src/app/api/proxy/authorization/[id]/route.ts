@@ -16,12 +16,12 @@ import { revokeAuthorization, getAuthorization } from '@/lib/proxy/authorization
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const authorizationId = params.id;
+    const { id: authorizationId } = await params;
 
     if (!authorizationId) {
       return NextResponse.json(

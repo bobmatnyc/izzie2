@@ -23,6 +23,7 @@ interface MCPServerRow {
   enabled: boolean;
   created_at: Date;
   updated_at: Date;
+  [key: string]: unknown;
 }
 
 /**
@@ -51,6 +52,8 @@ export async function GET(request: NextRequest) {
       url: row.url || undefined,
       headers: row.headers || undefined,
       enabled: row.enabled,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     }));
 
     console.log(`${LOG_PREFIX} User ${userId} fetched ${servers.length} MCP servers`);
@@ -127,6 +130,8 @@ export async function POST(request: NextRequest) {
       url: row.url || undefined,
       headers: row.headers || undefined,
       enabled: row.enabled,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
 
     console.log(`${LOG_PREFIX} User ${userId} created MCP server: ${server.name}`);

@@ -138,7 +138,7 @@ describe('Audit Service', () => {
       const entry = await logProxyAction(params);
 
       expect(entry.output).toHaveProperty('_rollbackEligible');
-      expect(entry.output._rollbackEligible).toBe(true);
+      expect((entry.output as Record<string, unknown>)._rollbackEligible).toBe(true);
     });
 
     it('should mark non-rollback-eligible actions', async () => {
@@ -159,7 +159,7 @@ describe('Audit Service', () => {
       const entry = await logProxyAction(params);
 
       expect(entry.output).toHaveProperty('_rollbackEligible');
-      expect(entry.output._rollbackEligible).toBe(false);
+      expect((entry.output as Record<string, unknown>)._rollbackEligible).toBe(false);
     });
 
     it('should record user confirmation when provided', async () => {

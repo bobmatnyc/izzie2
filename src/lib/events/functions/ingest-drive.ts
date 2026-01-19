@@ -47,14 +47,13 @@ export const ingestDrive = inngest.createFunction(
       return state;
     });
 
-    // Step 2: Get Drive service
-    const driveService = await step.run('get-drive-service', async () => {
+    // Helper: Create Drive service (must be created fresh in each step)
+    async function createDriveService(): Promise<DriveService> {
       const auth = await getServiceAccountAuth(userId);
-      const service = await getDriveService(auth);
-      return service;
-    });
+      return getDriveService(auth);
+    }
 
-    // Step 3: Get or initialize page token
+    // Step 2: Get or initialize page token
     const pageToken = await step.run('get-page-token', async () => {
       if (syncState?.lastPageToken) {
         console.log(`${LOG_PREFIX} Using existing page token`);
@@ -63,15 +62,17 @@ export const ingestDrive = inngest.createFunction(
 
       // First sync - get initial token
       console.log(`${LOG_PREFIX} Initializing page token`);
+      const driveService = await createDriveService();
       const tokenData = await driveService.getStartPageToken();
       return tokenData.token;
     });
 
-    // Step 4: Fetch changes since last sync
+    // Step 3: Fetch changes since last sync
     const changes = await step.run('fetch-changes', async () => {
       try {
         console.log(`${LOG_PREFIX} Fetching changes from token ${pageToken}`);
 
+        const driveService = await createDriveService();
         const changesData = await driveService.listChanges(pageToken);
 
         console.log(`${LOG_PREFIX} Fetched ${changesData.changes.length} changes`);
@@ -84,9 +85,10 @@ export const ingestDrive = inngest.createFunction(
       }
     });
 
-    // Step 5: Process changes and emit events
+    // Step 4: Process changes and emit events
     const eventsEmitted = await step.run('process-changes', async () => {
       let count = 0;
+      const driveService = await createDriveService();
 
       for (const change of changes.changes) {
         // Skip removed files
@@ -124,6 +126,9 @@ export const ingestDrive = inngest.createFunction(
             ? fileContent.content
             : fileContent.content.toString('utf-8');
 
+          // modifiedTime is a Date but gets serialized to string by step.run, cast to ensure string
+          const modifiedTimeStr = String(file.modifiedTime);
+
           // Emit event for entity extraction
           await inngest.send({
             name: 'izzie/ingestion.drive.extracted',
@@ -133,8 +138,8 @@ export const ingestDrive = inngest.createFunction(
               fileName: file.name,
               mimeType: file.mimeType,
               content: contentStr,
-              modifiedTime: file.modifiedTime.toISOString(),
-              owners: file.owners.map(owner => ({
+              modifiedTime: modifiedTimeStr,
+              owners: file.owners.map((owner: { displayName: string; emailAddress: string }) => ({
                 displayName: owner.displayName,
                 emailAddress: owner.emailAddress,
               })),
@@ -165,7 +170,7 @@ export const ingestDrive = inngest.createFunction(
       return count;
     });
 
-    // Step 6: Update sync state with new page token
+    // Step 5: Update sync state with new page token
     await step.run('update-sync-state', async () => {
       await updateSyncState(userId, 'drive', {
         lastSyncTime: new Date(),

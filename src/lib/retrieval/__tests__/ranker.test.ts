@@ -2,6 +2,7 @@
  * Result Ranker Tests
  */
 
+import { describe, it, expect } from 'vitest';
 import {
   rankVectorResults,
   mergeAndRank,
@@ -10,7 +11,7 @@ import {
   DEFAULT_WEIGHTS,
 } from '../ranker';
 import type { VectorSearchResult } from '@/lib/db/vectors';
-import type { ParsedQuery } from '../types';
+import type { ParsedQuery, RankedResult } from '../types';
 
 describe('Result Ranker', () => {
   const mockQuery: ParsedQuery = {
@@ -63,7 +64,7 @@ describe('Result Ranker', () => {
 
       const ranked = rankVectorResults([recentResult, oldResult], mockQuery);
 
-      expect(ranked[0].scores.recency).toBeGreaterThan(ranked[1].scores.recency);
+      expect(ranked[0].scores.recency).toBeGreaterThan(ranked[1]!.scores.recency!);
     });
 
     it('should calculate entity overlap', () => {
@@ -81,7 +82,7 @@ describe('Result Ranker', () => {
       const ranked = rankVectorResults([withEntity, withoutEntity], mockQuery);
 
       expect(ranked[0].scores.entityOverlap).toBeGreaterThan(
-        ranked[1].scores.entityOverlap
+        ranked[1]!.scores.entityOverlap!
       );
     });
 
@@ -117,7 +118,7 @@ describe('Result Ranker', () => {
   describe('mergeAndRank', () => {
     it('should merge vector and graph results', () => {
       const vectorRanked = rankVectorResults([mockVectorResult], mockQuery);
-      const graphRanked = []; // Empty for simplicity
+      const graphRanked: RankedResult[] = []; // Empty for simplicity
 
       const merged = mergeAndRank(vectorRanked, graphRanked);
 

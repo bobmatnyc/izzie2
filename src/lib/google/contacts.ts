@@ -66,8 +66,8 @@ export class ContactsService {
           return {
             resourceName: person.resourceName || '',
             displayName: primaryName?.displayName || primaryEmail?.value || 'Unknown',
-            givenName: primaryName?.givenName,
-            familyName: primaryName?.familyName,
+            givenName: primaryName?.givenName ?? undefined,
+            familyName: primaryName?.familyName ?? undefined,
             emails: person.emailAddresses?.map((email) => ({
               value: email.value || '',
               type: email.type || 'other',
@@ -80,17 +80,17 @@ export class ContactsService {
             })) || [],
             organizations: person.organizations?.map((org) => ({
               name: org.name || '',
-              title: org.title,
-              department: org.department,
+              title: org.title ?? undefined,
+              department: org.department ?? undefined,
             })) || [],
-            photoUrl: primaryPhoto?.url,
-            biography: person.biographies?.[0]?.value,
+            photoUrl: primaryPhoto?.url ?? undefined,
+            biography: person.biographies?.[0]?.value ?? undefined,
             addresses: person.addresses?.map((addr) => ({
               formattedValue: addr.formattedValue || '',
               type: addr.type || 'other',
-              city: addr.city,
-              region: addr.region,
-              country: addr.country,
+              city: addr.city ?? undefined,
+              region: addr.region ?? undefined,
+              country: addr.country ?? undefined,
             })) || [],
             birthdays: person.birthdays?.map((bday) => ({
               date: bday.date ? {
@@ -177,8 +177,8 @@ export class ContactsService {
       return {
         resourceName: person.resourceName || '',
         displayName: primaryName?.displayName || primaryEmail?.value || 'Unknown',
-        givenName: primaryName?.givenName,
-        familyName: primaryName?.familyName,
+        givenName: primaryName?.givenName ?? undefined,
+        familyName: primaryName?.familyName ?? undefined,
         emails: person.emailAddresses?.map((email) => ({
           value: email.value || '',
           type: email.type || 'other',
@@ -191,17 +191,17 @@ export class ContactsService {
         })) || [],
         organizations: person.organizations?.map((org) => ({
           name: org.name || '',
-          title: org.title,
-          department: org.department,
+          title: org.title ?? undefined,
+          department: org.department ?? undefined,
         })) || [],
-        photoUrl: primaryPhoto?.url,
-        biography: person.biographies?.[0]?.value,
+        photoUrl: primaryPhoto?.url ?? undefined,
+        biography: person.biographies?.[0]?.value ?? undefined,
         addresses: person.addresses?.map((addr) => ({
           formattedValue: addr.formattedValue || '',
           type: addr.type || 'other',
-          city: addr.city,
-          region: addr.region,
-          country: addr.country,
+          city: addr.city ?? undefined,
+          region: addr.region ?? undefined,
+          country: addr.country ?? undefined,
         })) || [],
         birthdays: person.birthdays?.map((bday) => ({
           date: bday.date ? {

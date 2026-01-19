@@ -2,6 +2,7 @@
  * Query Parser Tests
  */
 
+import { describe, it, expect } from 'vitest';
 import { parseQuery, suggestStrategy } from '../parser';
 
 describe('Query Parser', () => {

@@ -77,9 +77,9 @@ describe('Classification Pipeline Integration', () => {
 
     // Set up registry
     registry = new HandlerRegistry();
-    registry.register(schedulerHandler);
-    registry.register(taskManagerHandler);
-    registry.register(orchestratorHandler);
+    registry.register('scheduler', schedulerHandler);
+    registry.register('notifier', taskManagerHandler);
+    registry.register('orchestrator', orchestratorHandler);
 
     // Set up dispatcher
     dispatcher = new EventDispatcher(registry);
@@ -101,12 +101,15 @@ describe('Classification Pipeline Integration', () => {
       // Step 2: Create classified event
       const classifiedEvent: ClassifiedEvent = {
         webhookId: testEvents.calendarEvent.webhookId,
-        source: testEvents.calendarEvent.source,
+        source: testEvents.calendarEvent.source as 'github' | 'linear' | 'google',
         timestamp: testEvents.calendarEvent.timestamp,
         classification: {
           category: classification.category,
           confidence: classification.confidence,
-          actions: classification.actions,
+          actions: classification.actions.filter(
+            (a): a is 'schedule' | 'notify' | 'ignore' =>
+              a === 'schedule' || a === 'notify' || a === 'ignore'
+          ),
           reasoning: classification.reasoning,
         },
         originalPayload: testEvents.calendarEvent.payload,
@@ -144,12 +147,15 @@ describe('Classification Pipeline Integration', () => {
 
       const classifiedEvent: ClassifiedEvent = {
         webhookId: testEvents.githubPR.webhookId,
-        source: testEvents.githubPR.source,
+        source: testEvents.githubPR.source as 'github' | 'linear' | 'google',
         timestamp: testEvents.githubPR.timestamp,
         classification: {
           category: classification.category,
           confidence: classification.confidence,
-          actions: classification.actions,
+          actions: classification.actions.filter(
+            (a): a is 'schedule' | 'notify' | 'ignore' =>
+              a === 'schedule' || a === 'notify' || a === 'ignore'
+          ),
         },
         originalPayload: testEvents.githubPR.payload,
       };
@@ -170,12 +176,15 @@ describe('Classification Pipeline Integration', () => {
 
       const classifiedEvent: ClassifiedEvent = {
         webhookId: testEvents.slackMessage.webhookId,
-        source: testEvents.slackMessage.source,
+        source: testEvents.slackMessage.source as 'github' | 'linear' | 'google',
         timestamp: testEvents.slackMessage.timestamp,
         classification: {
           category: classification.category,
           confidence: classification.confidence,
-          actions: classification.actions,
+          actions: classification.actions.filter(
+            (a): a is 'schedule' | 'notify' | 'ignore' =>
+              a === 'schedule' || a === 'notify' || a === 'ignore'
+          ),
         },
         originalPayload: testEvents.slackMessage.payload,
       };
@@ -207,12 +216,15 @@ describe('Classification Pipeline Integration', () => {
         const classification = await classifier.classify(event);
         const classifiedEvent: ClassifiedEvent = {
           webhookId: event.webhookId,
-          source: event.source,
+          source: event.source as 'github' | 'linear' | 'google',
           timestamp: event.timestamp,
           classification: {
             category: classification.category,
             confidence: classification.confidence,
-            actions: classification.actions,
+            actions: classification.actions.filter(
+              (a): a is 'schedule' | 'notify' | 'ignore' =>
+                a === 'schedule' || a === 'notify' || a === 'ignore'
+            ),
           },
           originalPayload: event.payload,
         };
@@ -266,17 +278,20 @@ describe('Classification Pipeline Integration', () => {
       };
 
       const failingRegistry = new HandlerRegistry();
-      failingRegistry.register(failingHandler);
+      failingRegistry.register('scheduler', failingHandler);
       const failingDispatcher = new EventDispatcher(failingRegistry);
 
       const classifiedEvent: ClassifiedEvent = {
         webhookId: testEvents.calendarEvent.webhookId,
-        source: testEvents.calendarEvent.source,
+        source: testEvents.calendarEvent.source as 'github' | 'linear' | 'google',
         timestamp: testEvents.calendarEvent.timestamp,
         classification: {
           category: classification.category,
           confidence: classification.confidence,
-          actions: classification.actions,
+          actions: classification.actions.filter(
+            (a): a is 'schedule' | 'notify' | 'ignore' =>
+              a === 'schedule' || a === 'notify' || a === 'ignore'
+          ),
         },
         originalPayload: testEvents.calendarEvent.payload,
       };
@@ -313,12 +328,15 @@ describe('Classification Pipeline Integration', () => {
 
       const classifiedEvent: ClassifiedEvent = {
         webhookId: testEvents.calendarEvent.webhookId,
-        source: testEvents.calendarEvent.source,
+        source: testEvents.calendarEvent.source as 'github' | 'linear' | 'google',
         timestamp: testEvents.calendarEvent.timestamp,
         classification: {
           category: classification.category,
           confidence: classification.confidence,
-          actions: classification.actions,
+          actions: classification.actions.filter(
+            (a): a is 'schedule' | 'notify' | 'ignore' =>
+              a === 'schedule' || a === 'notify' || a === 'ignore'
+          ),
         },
         originalPayload: testEvents.calendarEvent.payload,
       };
@@ -343,12 +361,15 @@ describe('Classification Pipeline Integration', () => {
       const classification = await classifier.classify(testEvents.calendarEvent);
       const classifiedEvent: ClassifiedEvent = {
         webhookId: testEvents.calendarEvent.webhookId,
-        source: testEvents.calendarEvent.source,
+        source: testEvents.calendarEvent.source as 'github' | 'linear' | 'google',
         timestamp: testEvents.calendarEvent.timestamp,
         classification: {
           category: classification.category,
           confidence: classification.confidence,
-          actions: classification.actions,
+          actions: classification.actions.filter(
+            (a): a is 'schedule' | 'notify' | 'ignore' =>
+              a === 'schedule' || a === 'notify' || a === 'ignore'
+          ),
         },
         originalPayload: testEvents.calendarEvent.payload,
       };
@@ -373,12 +394,15 @@ describe('Classification Pipeline Integration', () => {
 
       const classifiedEvent: ClassifiedEvent = {
         webhookId: testEvents.calendarEvent.webhookId,
-        source: testEvents.calendarEvent.source,
+        source: testEvents.calendarEvent.source as 'github' | 'linear' | 'google',
         timestamp: testEvents.calendarEvent.timestamp,
         classification: {
           category: classification.category,
           confidence: classification.confidence,
-          actions: classification.actions,
+          actions: classification.actions.filter(
+            (a): a is 'schedule' | 'notify' | 'ignore' =>
+              a === 'schedule' || a === 'notify' || a === 'ignore'
+          ),
         },
         originalPayload: testEvents.calendarEvent.payload,
       };

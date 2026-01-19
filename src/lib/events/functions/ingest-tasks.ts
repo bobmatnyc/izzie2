@@ -36,19 +36,21 @@ export const extractTaskEntities = inngest.createFunction(
         const content = buildTaskContent(taskData);
 
         // Create a pseudo-email object for entity extraction
+        const taskDate = taskData.updated ? new Date(taskData.updated) : new Date();
         const taskAsEmail = {
           id: taskData.taskId,
           subject: taskData.title,
           body: content,
           from: { name: 'Google Tasks', email: taskData.userId },
           to: [],
-          date: taskData.updated ? new Date(taskData.updated) : new Date(),
+          date: taskDate,
           threadId: taskData.listId,
           labels: [taskData.listTitle, taskData.status],
           snippet: taskData.notes?.substring(0, 100) || taskData.title,
           isSent: false,
           isRead: taskData.status === 'completed',
           hasAttachments: false,
+          internalDate: taskDate.getTime(),
         };
 
         const result = await extractor.extractFromEmail(taskAsEmail);
@@ -116,7 +118,7 @@ export const extractTaskEntities = inngest.createFunction(
           },
           entities: extractionResult.entities,
           importance: calculateTaskImportance(taskData, extractionResult.entities),
-          embedding: undefined, // Will be generated later
+          // embedding will be generated later
         });
 
         if (!result.success) {
@@ -134,6 +136,11 @@ export const extractTaskEntities = inngest.createFunction(
 
     // Step 3: Emit entities extracted event for downstream processing
     await step.run('emit-entities-event', async () => {
+      // extractedAt may be serialized as string by inngest step.run (runtime vs type definition)
+      const extractedAt = extractionResult.extractedAt as unknown;
+      const extractedAtStr = typeof extractedAt === 'string'
+        ? extractedAt
+        : (extractedAt as Date).toISOString();
       await inngest.send({
         name: 'izzie/ingestion.entities.extracted',
         data: {
@@ -142,7 +149,7 @@ export const extractTaskEntities = inngest.createFunction(
           sourceType: 'task',
           entities: extractionResult.entities,
           spam: extractionResult.spam,
-          extractedAt: extractionResult.extractedAt.toISOString(),
+          extractedAt: extractedAtStr,
           cost: extractionResult.cost,
           model: extractionResult.model,
         } satisfies EntitiesExtractedPayload,

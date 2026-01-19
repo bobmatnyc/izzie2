@@ -95,8 +95,8 @@ async function test2_retrieveContext(userId: string): Promise<void> {
         hasMemories,
         sampleEntities: context.entities?.slice(0, 3).map((e) => ({
           type: e.type,
-          name: e.name,
-          relevance: e.relevance,
+          value: e.value,
+          confidence: e.confidence,
         })),
       },
     });
@@ -203,9 +203,11 @@ async function test5_setCurrentTask(sessionId: string, userId: string): Promise<
         response: 'I can help you plan that meeting. Let me check your calendar...',
         currentTask: {
           goal: 'Plan team meeting for next week',
+          context: 'User wants to schedule a team meeting',
           progress: 'Gathering team availability and calendar constraints',
           blockers: [],
           nextSteps: ['Check calendar availability', 'Find suitable time slot', 'Send invitations'],
+          updatedAt: new Date(),
         },
       },
       { model: 'anthropic/claude-3.5-sonnet' }

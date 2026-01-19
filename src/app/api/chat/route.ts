@@ -256,7 +256,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                   role: 'assistant',
                   content: fullContent,
                   tool_calls: toolCalls,
-                });
+                } as any);
 
                 // Execute each tool and add results
                 for (const toolCall of toolCalls) {
@@ -281,7 +281,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                     content: JSON.stringify(result),
                     tool_call_id: toolCall.id,
                     name: toolName,
-                  });
+                  } as any);
 
                   // Send tool result notification
                   const toolResult = JSON.stringify({
@@ -371,7 +371,6 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                       importance: mem.importance,
                       sourceType: 'chat',
                       sourceId: chatSession.id,
-                      context: mem.context,
                       sourceDate: new Date(),
                     });
                     console.log(`${LOG_PREFIX} Saved memory: ${mem.content.substring(0, 50)}...`);

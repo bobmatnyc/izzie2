@@ -99,7 +99,7 @@ export class CalendarService {
 
     return {
       dateTime: dt || new Date().toISOString(),
-      timeZone: dateTime.timeZone,
+      timeZone: dateTime.timeZone ?? undefined,
     };
   }
 

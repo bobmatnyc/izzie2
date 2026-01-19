@@ -16,13 +16,13 @@ import { getIntegrationConsents } from '@/lib/proxy/consent-service';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     const session = await requireAuth(request);
     const userId = session.user.id;
 
-    const integration = params.name;
+    const { name: integration } = await params;
 
     // Validate integration name
     const validIntegrations = ['email', 'calendar', 'github', 'slack', 'task'];

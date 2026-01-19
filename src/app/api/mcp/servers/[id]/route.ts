@@ -23,6 +23,7 @@ interface MCPServerRow {
   enabled: boolean;
   created_at: Date;
   updated_at: Date;
+  [key: string]: unknown;
 }
 
 interface RouteContext {
@@ -63,6 +64,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       url: row.url || undefined,
       headers: row.headers || undefined,
       enabled: row.enabled,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
 
     return NextResponse.json({ server });
@@ -137,6 +140,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       url: row.url || undefined,
       headers: row.headers || undefined,
       enabled: row.enabled,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
 
     console.log(`${LOG_PREFIX} User ${userId} updated MCP server: ${server.name}`);

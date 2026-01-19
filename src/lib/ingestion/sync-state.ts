@@ -7,7 +7,7 @@ import { dbClient } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { extractionProgress } from '@/lib/db/schema';
 
-export type SyncSource = 'gmail' | 'drive';
+export type SyncSource = 'gmail' | 'drive' | 'calendar';
 
 export interface SyncState {
   source: SyncSource;
@@ -25,6 +25,7 @@ export interface SyncState {
 function mapSourceName(source: SyncSource): string {
   if (source === 'gmail') return 'email';
   if (source === 'drive') return 'drive';
+  if (source === 'calendar') return 'calendar';
   return source;
 }
 

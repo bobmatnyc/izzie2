@@ -89,14 +89,14 @@ export class OpenRouterClient {
           messages: messages.map((m) => ({
             role: m.role,
             content: m.content,
-            tool_calls: m.tool_calls,
-            tool_call_id: m.tool_call_id,
-            name: m.name,
-          })),
+            ...(m.tool_calls && { tool_calls: m.tool_calls }),
+            ...(m.tool_call_id && { tool_call_id: m.tool_call_id }),
+            ...(m.name && { name: m.name }),
+          })) as OpenAI.Chat.ChatCompletionMessageParam[],
           max_tokens: maxTokens,
           temperature,
-          tools: options.tools,
-          tool_choice: options.tool_choice,
+          tools: options.tools as OpenAI.Chat.ChatCompletionTool[] | undefined,
+          tool_choice: options.tool_choice as OpenAI.Chat.ChatCompletionToolChoiceOption | undefined,
           ...options.extra,
         });
 
@@ -177,15 +177,15 @@ export class OpenRouterClient {
       messages: messages.map((m) => ({
         role: m.role,
         content: m.content,
-        tool_calls: m.tool_calls,
-        tool_call_id: m.tool_call_id,
-        name: m.name,
-      })),
+        ...(m.tool_calls && { tool_calls: m.tool_calls }),
+        ...(m.tool_call_id && { tool_call_id: m.tool_call_id }),
+        ...(m.name && { name: m.name }),
+      })) as OpenAI.Chat.ChatCompletionMessageParam[],
       max_tokens: maxTokens,
       temperature,
       stream: true,
-      tools: options.tools,
-      tool_choice: options.tool_choice,
+      tools: options.tools as OpenAI.Chat.ChatCompletionTool[] | undefined,
+      tool_choice: options.tool_choice as OpenAI.Chat.ChatCompletionToolChoiceOption | undefined,
       ...options.extra,
     });
 

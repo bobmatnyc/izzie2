@@ -17,9 +17,9 @@ import { z } from 'zod';
 const LOG_PREFIX = '[Research Findings API]';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     taskId: string;
-  };
+  }>;
 }
 
 /**
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Require authentication
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const { taskId } = params;
+    const { taskId } = await params;
 
     console.log(`${LOG_PREFIX} Getting findings for task ${taskId}`);
 
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         {
           error: 'Invalid query parameters',
-          details: error.errors,
+          details: error.issues,
         },
         { status: 400 }
       );

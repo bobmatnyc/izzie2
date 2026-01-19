@@ -79,7 +79,8 @@ export const extractEntitiesFromEmail = inngest.createFunction(
           sourceType: 'email',
           entities: extractionResult.entities,
           spam: extractionResult.spam,
-          extractedAt: extractionResult.extractedAt.toISOString(),
+          // extractedAt is a Date but gets serialized to string by step.run, cast to ensure string
+          extractedAt: String(extractionResult.extractedAt),
           cost: extractionResult.cost,
           model: extractionResult.model,
         } satisfies EntitiesExtractedPayload,
@@ -165,7 +166,8 @@ export const extractEntitiesFromDrive = inngest.createFunction(
           entities: extractionResult.entities,
           // Drive documents are not spam (default classification)
           spam: { isSpam: false, spamScore: 0 },
-          extractedAt: extractionResult.extractedAt.toISOString(),
+          // extractedAt is a Date but gets serialized to string by step.run, cast to ensure string
+          extractedAt: String(extractionResult.extractedAt),
           cost: extractionResult.cost,
           model: extractionResult.model,
         } satisfies EntitiesExtractedPayload,
@@ -265,7 +267,8 @@ export const extractEntitiesFromCalendar = inngest.createFunction(
           sourceType: 'calendar',
           entities: extractionResult.entities,
           spam: { isSpam: false, spamScore: 0 }, // Calendar events are never spam
-          extractedAt: extractionResult.extractedAt.toISOString(),
+          // extractedAt is a Date but gets serialized to string by step.run, cast to ensure string
+          extractedAt: String(extractionResult.extractedAt),
           cost: extractionResult.cost,
           model: extractionResult.model,
         } satisfies EntitiesExtractedPayload,

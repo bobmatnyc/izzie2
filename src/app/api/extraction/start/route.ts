@@ -58,6 +58,7 @@ async function triggerSync(
     email: '/api/gmail/sync-user', // Use user OAuth tokens
     calendar: '/api/calendar/sync',
     drive: '/api/drive/sync', // Placeholder - not yet implemented
+    contacts: '/api/contacts/sync', // Placeholder - not yet implemented
   };
 
   const url = syncUrls[source];

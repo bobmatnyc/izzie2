@@ -31,7 +31,6 @@ async function resetExtractionStatus() {
       .update(extractionProgress)
       .set({
         status: 'idle',
-        lastError: null,
       })
       .where(eq(extractionProgress.status, 'running'))
       .returning();

@@ -37,7 +37,7 @@ export default function Home() {
             </p>
           )}
         </div>
-        {session?.user && <SignOutButton variant="minimal" />}
+        {session?.user && <SignOutButton variant="ghost" />}
       </div>
 
       {/* Content */}

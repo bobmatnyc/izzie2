@@ -17,12 +17,12 @@ import { getRollback, verifyRollback } from '@/lib/proxy/rollback-service';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const rollbackId = params.id;
+    const { id: rollbackId } = await params;
 
     const { searchParams } = new URL(request.url);
     const shouldVerify = searchParams.get('verify') === 'true';

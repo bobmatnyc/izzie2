@@ -28,7 +28,7 @@ export function formatResearchResults(output: ResearchOutput): string {
     output.findings.forEach((finding, index) => {
       const confidence = Math.round((finding.confidence || 0) * 100);
       sections.push(
-        `${index + 1}. **${finding.claim}**\n   - Evidence: ${finding.evidence}\n   - Confidence: ${confidence}%\n   - Source: [${finding.sourceTitle || 'View source'}](${finding.sourceUrl})\n`
+        `${index + 1}. **${finding.claim}**\n   - Evidence: ${finding.evidence}\n   - Confidence: ${confidence}%\n   - Source: [View source](${finding.sourceUrl})\n`
       );
     });
 
@@ -40,8 +40,8 @@ export function formatResearchResults(output: ResearchOutput): string {
     sections.push(`## Sources\n`);
 
     output.sources.forEach((source, index) => {
-      const relevance = Math.round((source.relevanceScore || 0) * 100);
-      const credibility = Math.round((source.credibilityScore || 0) * 100);
+      const relevance = Math.round((source.relevance || 0) * 100);
+      const credibility = Math.round((source.credibility || 0) * 100);
 
       sections.push(
         `${index + 1}. [${source.title || source.url}](${source.url})\n   - Relevance: ${relevance}% | Credibility: ${credibility}%\n`
@@ -51,12 +51,12 @@ export function formatResearchResults(output: ResearchOutput): string {
     sections.push('');
   }
 
-  // Metadata
-  if (output.metadata) {
-    const tokensUsed = output.metadata.tokensUsed || 0;
-    const totalCost = output.metadata.totalCost || 0;
-    const sourcesAnalyzed = output.metadata.sourcesAnalyzed || 0;
+  // Statistics
+  const tokensUsed = output.totalTokens || 0;
+  const totalCost = output.totalCost || 0;
+  const sourcesAnalyzed = output.sources?.length || 0;
 
+  if (tokensUsed > 0 || totalCost > 0 || sourcesAnalyzed > 0) {
     sections.push(`## Research Statistics\n`);
     sections.push(`- Sources analyzed: ${sourcesAnalyzed}`);
     sections.push(`- Tokens used: ${tokensUsed.toLocaleString()}`);

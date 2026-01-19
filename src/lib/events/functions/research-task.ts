@@ -6,7 +6,7 @@
 import { inngest } from '../index';
 import { ResearchAgent } from '@/agents/research/research-agent';
 import { TaskManager } from '@/agents/base/task-manager';
-import type { AgentContext } from '@/agents/base/types';
+import type { AgentContext, AgentStatus, AgentTask } from '@/agents/base/types';
 import type { ResearchInput } from '@/agents/research/types';
 
 const taskManager = new TaskManager();
@@ -80,10 +80,25 @@ export const researchTask = inngest.createFunction(
         const agent = new ResearchAgent();
 
         // Build agent context
+        // Convert null to undefined for sessionId/output compatibility and cast status
+        const taskWithUndefined: AgentTask = {
+          ...task,
+          sessionId: task.sessionId ?? undefined,
+          status: task.status as AgentStatus,
+          output: task.output ?? undefined,
+          error: task.error ?? undefined,
+          currentStep: task.currentStep ?? undefined,
+          budgetLimit: task.budgetLimit ?? undefined,
+          parentTaskId: task.parentTaskId ?? undefined,
+          startedAt: task.startedAt ? new Date(task.startedAt) : undefined,
+          completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
+          createdAt: new Date(task.createdAt),
+          updatedAt: new Date(task.updatedAt),
+        };
         const context: AgentContext = {
-          task,
+          task: taskWithUndefined,
           userId,
-          sessionId: task.sessionId,
+          sessionId: task.sessionId ?? undefined,
 
           updateProgress: async (progress) => {
             await taskManager.updateTask(taskId, progress);

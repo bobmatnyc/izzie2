@@ -136,7 +136,10 @@ export const ingestEmails = inngest.createFunction(
           const gmail = getUserGmailClient({
             accessToken: user.accessToken,
             refreshToken: user.refreshToken,
-            accessTokenExpiresAt: user.accessTokenExpiresAt,
+            // Convert string timestamp to Date or null
+            accessTokenExpiresAt: user.accessTokenExpiresAt
+              ? new Date(user.accessTokenExpiresAt)
+              : null,
           });
 
           // Build query
@@ -261,7 +264,7 @@ export const ingestEmails = inngest.createFunction(
               } catch (error) {
                 console.error(`${LOG_PREFIX} Error processing message ${message.id}:`, error);
                 await updateCounters(user.userId, 'email', {
-                  failedItems: currentProgress.failedItems + 1,
+                  failedItems: (currentProgress.failedItems ?? 0) + 1,
                 });
               }
 
@@ -314,7 +317,7 @@ export const ingestEmails = inngest.createFunction(
       return userResults;
     });
 
-    const totalEmails = results.reduce((sum, r) => sum + (r.emailsProcessed || 0), 0);
+    const totalEmails = results.reduce((sum, r) => sum + ('emailsProcessed' in r ? r.emailsProcessed : 0), 0);
 
     console.log(`${LOG_PREFIX} Completed all users. Total emails: ${totalEmails}`);
 

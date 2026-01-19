@@ -88,7 +88,7 @@ export const researchTool = {
 
       if (updatedTask?.status === 'completed' && updatedTask.output) {
         // Quick completion - return results immediately
-        const output = updatedTask.output as ResearchOutput;
+        const output = updatedTask.output as unknown as ResearchOutput;
         const formattedResults = formatResearchResults(output);
 
         return {
@@ -125,7 +125,7 @@ export const researchTool = {
 
       if (error instanceof z.ZodError) {
         throw new Error(
-          `Invalid research parameters: ${error.errors.map((e) => e.message).join(', ')}`
+          `Invalid research parameters: ${error.issues.map((e) => e.message).join(', ')}`
         );
       }
 
@@ -170,7 +170,7 @@ export const checkResearchStatusTool = {
 
       // Check task status
       if (task.status === 'completed' && task.output) {
-        const output = task.output as ResearchOutput;
+        const output = task.output as unknown as ResearchOutput;
         const formattedResults = formatResearchResults(output);
         return {
           message: `${formatResearchStatus(task)}\n\n${formattedResults}`,

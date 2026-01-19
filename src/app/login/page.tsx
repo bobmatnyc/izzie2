@@ -34,12 +34,15 @@ export default function LoginPage() {
       });
 
       // If signIn returns a redirect URL, navigate to it
-      if (result?.data?.url) {
-        window.location.href = result.data.url;
-      } else if (result?.url) {
-        window.location.href = result.url;
-      } else if (result?.redirect) {
-        window.location.href = result.redirect;
+      // Better Auth can return the redirect URL in different formats depending on version
+      const resultData = result?.data as { url?: string } | null;
+      const resultAny = result as { url?: string; redirect?: string } | null;
+      if (resultData?.url) {
+        window.location.href = resultData.url;
+      } else if (resultAny?.url) {
+        window.location.href = resultAny.url;
+      } else if (resultAny?.redirect) {
+        window.location.href = resultAny.redirect;
       }
     } catch (err) {
       console.error('Sign in error:', err);

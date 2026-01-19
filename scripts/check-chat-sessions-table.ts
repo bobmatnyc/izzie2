@@ -1,8 +1,9 @@
-import { db } from '../src/lib/db';
+import { dbClient } from '../src/lib/db';
 import { sql } from 'drizzle-orm';
 
 async function checkTable() {
   try {
+    const db = dbClient.getDb();
     const result = await db.execute(sql`
       SELECT EXISTS (
         SELECT FROM information_schema.tables

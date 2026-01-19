@@ -10,9 +10,9 @@ import { getTask, updateTask } from '@/agents/base/task-manager';
 const LOG_PREFIX = '[Research Pause API]';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     taskId: string;
-  };
+  }>;
 }
 
 /**
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Require authentication
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const { taskId } = params;
+    const { taskId } = await params;
 
     console.log(`${LOG_PREFIX} Pausing task ${taskId} for user ${userId}`);
 

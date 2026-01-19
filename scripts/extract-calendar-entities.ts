@@ -29,7 +29,8 @@ import { dbClient } from '@/lib/db';
 import { users, accounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { listEvents } from '@/lib/calendar';
-import type { CalendarEvent } from '@/lib/calendar';
+import type { CalendarEvent as RichCalendarEvent } from '@/lib/calendar';
+import type { CalendarEvent } from '@/lib/google/types';
 import { getEntityExtractor } from '@/lib/extraction/entity-extractor';
 import { saveEntities } from '@/lib/weaviate';
 import {
@@ -44,6 +45,47 @@ import { deduplicateWithStats } from '@/lib/extraction/deduplication';
 import { applyPostFilters, logFilterStats } from '@/lib/extraction/post-filters';
 
 const LOG_PREFIX = '[ExtractCalendar]';
+
+/**
+ * Convert RichCalendarEvent (from @/lib/calendar) to CalendarEvent (from @/lib/google/types)
+ * needed for entity extraction
+ */
+function convertToExtractorEvent(event: RichCalendarEvent): CalendarEvent {
+  // Build start/end from dateTime or date (all-day events)
+  const startDateTime = event.start.dateTime || event.start.date || new Date().toISOString();
+  const endDateTime = event.end.dateTime || event.end.date || new Date().toISOString();
+
+  return {
+    id: event.id,
+    summary: event.summary || '(No title)',
+    description: event.description,
+    location: event.location,
+    start: {
+      dateTime: startDateTime,
+      timeZone: event.start.timeZone,
+    },
+    end: {
+      dateTime: endDateTime,
+      timeZone: event.end.timeZone,
+    },
+    attendees: (event.attendees || []).map((a) => ({
+      email: a.email,
+      displayName: a.displayName || a.email,
+      responseStatus: a.responseStatus,
+      self: a.self,
+    })),
+    organizer: event.organizer
+      ? {
+          email: event.organizer.email,
+          displayName: event.organizer.displayName || event.organizer.email,
+          self: event.organizer.self,
+        }
+      : undefined,
+    recurringEventId: event.recurringEventId,
+    status: event.status,
+    htmlLink: event.htmlLink,
+  };
+}
 
 // Parse command line arguments
 interface Args {
@@ -279,10 +321,11 @@ async function extractForUser(
           newestEventDate = eventDate;
         }
 
-        // Extract entities
+        // Extract entities (convert to extractor's CalendarEvent type)
         let extractionResult;
         try {
-          extractionResult = await extractor.extractFromCalendarEvent(event);
+          const extractorEvent = convertToExtractorEvent(event);
+          extractionResult = await extractor.extractFromCalendarEvent(extractorEvent);
           totalCost += extractionResult.cost;
         } catch (error) {
           console.error(`${LOG_PREFIX} ❌ Failed to extract entities from event ${event.id}:`, error);

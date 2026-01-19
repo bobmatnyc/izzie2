@@ -19,12 +19,12 @@ import type { AuthorizationScope, AuthorizationConditions } from '@/lib/proxy/ty
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireAuth(request);
     const userId = session.user.id;
-    const authorizationId = params.id;
+    const { id: authorizationId } = await params;
 
     const body = await request.json();
 

@@ -20,7 +20,7 @@ vi.mock('@/lib/db', () => ({
       })),
       select: vi.fn(() => ({
         from: vi.fn(() => ({
-          where: vi.fn(() => mockDb.getAuthorizations('', '')),
+          where: vi.fn(() => mockDb.getAuthorizations('', 'send_email')),
         })),
       })),
       update: vi.fn((table) => ({

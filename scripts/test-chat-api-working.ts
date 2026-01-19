@@ -87,7 +87,7 @@ async function searchEntities(query: string, limit: number = 10) {
   return uniqueEntities;
 }
 
-async function buildContextPrompt(entities: any[], query: string): string {
+function buildContextPrompt(entities: any[], query: string): string {
   if (entities.length === 0) {
     return `No relevant context found.`;
   }
@@ -150,7 +150,7 @@ async function main() {
     });
 
     // Step 3: Build context prompt
-    const contextPrompt = await buildContextPrompt(entities, testQuery);
+    const contextPrompt = buildContextPrompt(entities, testQuery);
 
     console.log('\n📝 Context Prompt Preview:\n');
     console.log(contextPrompt.substring(0, 500) + '...\n');
