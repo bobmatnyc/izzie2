@@ -5,11 +5,11 @@
 
 export const BUILD_INFO = {
   version: '1.0.2',
-  gitHash: 'bfcea85',
+  gitHash: 'affc222',
   gitBranch: 'feature/telegram-integration',
-  buildTime: '2026-01-19T23:00:26Z',
+  buildTime: '2026-01-19T23:34:29Z',
   nodeVersion: 'v25.2.1',
-  isDirty: true,
+  isDirty: false,
 } as const;
 
 export type BuildInfo = typeof BUILD_INFO;
