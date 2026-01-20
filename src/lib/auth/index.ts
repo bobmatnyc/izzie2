@@ -97,6 +97,7 @@ function getAuth(): ReturnType<typeof betterAuth> | null {
 }
 
 // Export as a getter for backward compatibility
+// The Proxy needs 'has' trap for `"handler" in auth` checks used by toNextJsHandler
 export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
   get(_, prop) {
     const authInstance = getAuth();
@@ -119,6 +120,18 @@ export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
       return undefined;
     }
     return (authInstance as Record<string, unknown>)[prop as string];
+  },
+  // Required for toNextJsHandler which uses "handler" in auth check
+  has(_, prop) {
+    // Always report 'handler' as present - we handle the fallback in get()
+    if (prop === 'handler') {
+      return true;
+    }
+    const authInstance = getAuth();
+    if (!authInstance) {
+      return false;
+    }
+    return prop in authInstance;
   },
 });
 

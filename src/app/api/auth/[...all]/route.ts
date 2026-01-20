@@ -1,11 +1,13 @@
 /**
  * Better Auth API Route Handler
  * Handles all authentication endpoints:
- * - /api/auth/sign-in/google
- * - /api/auth/sign-out
- * - /api/auth/callback/google
- * - /api/auth/session
- * - /api/auth/sign-up (email/password)
+ * - /api/auth/get-session (GET - returns session or null)
+ * - /api/auth/ok (GET - health check)
+ * - /api/auth/sign-in/google (GET - OAuth flow)
+ * - /api/auth/sign-in/email (POST - email/password login)
+ * - /api/auth/sign-up/email (POST - email/password registration)
+ * - /api/auth/sign-out (POST - logout)
+ * - /api/auth/callback/google (GET - OAuth callback)
  */
 
 import { auth } from '@/lib/auth';
