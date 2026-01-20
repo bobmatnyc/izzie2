@@ -101,13 +101,20 @@ export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
   get(_, prop) {
     const authInstance = getAuth();
     if (!authInstance) {
-      // Return a stub that throws helpful errors at runtime
+      // Handle auth API calls gracefully when database not configured
       if (prop === 'api') {
         return new Proxy({}, {
           get(_, apiProp) {
             return () => Promise.resolve(null);
           }
         });
+      }
+      // Handle Next.js route handler - return 503 instead of crashing
+      if (prop === 'handler') {
+        return async () => new Response(
+          JSON.stringify({ error: 'Auth unavailable - database not configured' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        );
       }
       return undefined;
     }
