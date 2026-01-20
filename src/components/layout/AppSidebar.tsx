@@ -24,9 +24,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 
 interface AppSidebarProps {
-  user?: {
-    name?: string;
-    email?: string;
+  user: {
+    name?: string | null;
+    email?: string | null;
   };
 }
 
@@ -75,7 +75,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
   };
 
   const getUserInitials = () => {
-    if (user?.name) {
+    if (user.name) {
       return user.name
         .split(' ')
         .map((n) => n[0])
@@ -83,10 +83,10 @@ export function AppSidebar({ user }: AppSidebarProps) {
         .toUpperCase()
         .slice(0, 2);
     }
-    if (user?.email) {
+    if (user.email) {
       return user.email[0].toUpperCase();
     }
-    return 'U';
+    return '?';
   };
 
   return (
@@ -149,10 +149,10 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold tracking-tight">
-                      {user?.name || 'User'}
+                      {user.name || user.email || 'Authenticated User'}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {user?.email || ''}
+                      {user.email || ''}
                     </span>
                   </div>
                   <ChevronDown className="ml-auto h-4 w-4 stroke-[1.5]" />

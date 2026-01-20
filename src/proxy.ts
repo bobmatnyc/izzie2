@@ -1,6 +1,7 @@
 /**
  * Next.js Proxy (formerly Middleware)
  * Protects routes that require authentication
+ * Redirects authenticated users away from auth pages
  *
  * Migrated from middleware.ts to proxy.ts for Next.js 16 compatibility
  * Reference: https://nextjs.org/docs/messages/middleware-to-proxy
@@ -10,55 +11,74 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
 /**
- * Protected route patterns
- * Add any routes that require authentication
+ * Protected route patterns - require authentication
  */
 const PROTECTED_ROUTES = ['/dashboard', '/calendar', '/profile', '/admin'];
 
 /**
- * Public routes that should not be protected
+ * Auth routes - redirect to dashboard if already authenticated
  */
-const PUBLIC_ROUTES = ['/', '/api/auth', '/sign-in', '/sign-up', '/login'];
+const AUTH_ROUTES = ['/login', '/sign-in', '/sign-up'];
+
+/**
+ * Public routes that bypass auth checks entirely
+ */
+const PUBLIC_ROUTES = ['/api/auth'];
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Check if route is protected
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
+  // Allow API auth routes without checks
+  const isPublicRoute = PUBLIC_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
-
-  // Check if route is public
-  const isPublicRoute = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route)
-  );
-
-  // Allow public routes
-  if (isPublicRoute || !isProtectedRoute) {
+  if (isPublicRoute) {
     return NextResponse.next();
   }
 
-  // Check authentication for protected routes
+  // Check if route is protected or auth route
+  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
+    pathname.startsWith(route)
+  );
+  const isAuthRoute = AUTH_ROUTES.some((route) => pathname === route);
+
+  // If neither protected nor auth route, allow through
+  if (!isProtectedRoute && !isAuthRoute) {
+    return NextResponse.next();
+  }
+
+  // Check authentication
   try {
     const session = await auth.api.getSession({
       headers: request.headers,
     });
 
-    if (!session) {
-      // Not authenticated - redirect to login page
+    const isAuthenticated = !!session?.user;
+
+    // Protected routes: redirect to login if not authenticated
+    if (isProtectedRoute && !isAuthenticated) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('callbackURL', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
-    // Authenticated - allow access
+    // Auth routes: redirect to dashboard if already authenticated
+    if (isAuthRoute && isAuthenticated) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Allow access
     return NextResponse.next();
   } catch (error) {
     console.error('Auth proxy error:', error);
-    // On error, redirect to login page
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('callbackURL', pathname);
-    return NextResponse.redirect(loginUrl);
+    // On error for protected routes, redirect to login
+    if (isProtectedRoute) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('callbackURL', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    // For auth routes on error, allow through (let client handle)
+    return NextResponse.next();
   }
 }
 

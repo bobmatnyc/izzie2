@@ -17,7 +17,7 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <Suspense fallback={<AppSidebar user={{ name: 'Loading...', email: '' }} />}>
+      <Suspense fallback={<AppSidebar user={{ name: 'Loading...', email: null }} />}>
         <UserInfo />
       </Suspense>
       <main className="flex flex-1 flex-col w-full">
