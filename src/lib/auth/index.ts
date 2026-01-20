@@ -84,6 +84,8 @@ function getAuth(): ReturnType<typeof betterAuth> | null {
         },
         useSecureCookies: process.env.NODE_ENV === 'production',
         generateId: false, // Use database-generated IDs
+        // Disable origin check in development (CSRF protection reduced)
+        disableOriginCheck: process.env.NODE_ENV !== 'production',
       },
 
       // Base URL for redirects
