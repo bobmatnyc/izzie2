@@ -1,7 +1,6 @@
 {
-  "_comment": "MPM deployment cache - hashes are content hashes, not secrets. pragma: allowlist file",
-  "version": "5.6.19+build.599",
+  "version": "5.6.41+build.599",
   "agent_count": 44,
   "deployment_hash": "b8af9be0f7aaa0aa7c826d7bc79bb8d1219ef9d887aaa96838d67936d61593ab",
-  "deployed_at": 1768798190.6750028
+  "deployed_at": 1768930309.5391932
 }

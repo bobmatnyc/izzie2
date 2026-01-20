@@ -63,3 +63,4 @@ test-results/
 
 # Screenshots (large files, not needed in version control)
 screenshots/
+.claude-mpm/correlations/
