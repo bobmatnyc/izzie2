@@ -78,6 +78,15 @@ export const extractEntitiesFromEmail = inngest.createFunction(
           sourceId: emailId,
           sourceType: 'email',
           entities: extractionResult.entities,
+          relationships: extractionResult.relationships.map((rel) => ({
+            fromType: rel.fromType,
+            fromValue: rel.fromValue,
+            toType: rel.toType,
+            toValue: rel.toValue,
+            relationshipType: rel.relationshipType,
+            confidence: rel.confidence,
+            evidence: rel.evidence,
+          })),
           spam: extractionResult.spam,
           // extractedAt is a Date but gets serialized to string by step.run, cast to ensure string
           extractedAt: String(extractionResult.extractedAt),
@@ -164,6 +173,7 @@ export const extractEntitiesFromDrive = inngest.createFunction(
           sourceId: fileId,
           sourceType: 'drive',
           entities: extractionResult.entities,
+          relationships: [], // Drive extraction does not currently extract inline relationships
           // Drive documents are not spam (default classification)
           spam: { isSpam: false, spamScore: 0 },
           // extractedAt is a Date but gets serialized to string by step.run, cast to ensure string
@@ -266,6 +276,15 @@ export const extractEntitiesFromCalendar = inngest.createFunction(
           sourceId: eventId,
           sourceType: 'calendar',
           entities: extractionResult.entities,
+          relationships: extractionResult.relationships.map((rel) => ({
+            fromType: rel.fromType,
+            fromValue: rel.fromValue,
+            toType: rel.toType,
+            toValue: rel.toValue,
+            relationshipType: rel.relationshipType,
+            confidence: rel.confidence,
+            evidence: rel.evidence,
+          })),
           spam: { isSpam: false, spamScore: 0 }, // Calendar events are never spam
           // extractedAt is a Date but gets serialized to string by step.run, cast to ensure string
           extractedAt: String(extractionResult.extractedAt),

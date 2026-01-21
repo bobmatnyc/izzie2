@@ -213,6 +213,17 @@ export const EntitiesExtractedSchema = z.object({
       priority: z.enum(['low', 'medium', 'high']).optional(),
     })
   ),
+  relationships: z.array(
+    z.object({
+      fromType: z.string(),
+      fromValue: z.string(),
+      toType: z.string(),
+      toValue: z.string(),
+      relationshipType: z.string(),
+      confidence: z.number().min(0).max(1),
+      evidence: z.string(),
+    })
+  ).optional().default([]),
   spam: z.object({
     isSpam: z.boolean(),
     spamScore: z.number().min(0).max(1),

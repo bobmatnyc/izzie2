@@ -6,7 +6,10 @@
 import { inngest } from '../index';
 import { processExtraction } from '@/lib/graph/graph-builder';
 import { enhancedMemoryService } from '@/lib/memory/enhanced';
+import { saveRelationships } from '@/lib/weaviate/relationships';
 import type { ExtractionResult } from '@/lib/extraction/types';
+import type { InferredRelationship } from '@/lib/relationships/types';
+import type { EntityType } from '@/lib/extraction/types';
 
 const LOG_PREFIX = '[UpdateGraph]';
 
@@ -24,7 +27,7 @@ export const updateGraph = inngest.createFunction(
   },
   { event: 'izzie/ingestion.entities.extracted' },
   async ({ event, step }) => {
-    const { userId, sourceId, sourceType, entities, spam, extractedAt, cost, model } = event.data;
+    const { userId, sourceId, sourceType, entities, relationships, spam, extractedAt, cost, model } = event.data;
 
     console.log(
       `${LOG_PREFIX} Updating graph for ${sourceType} ${sourceId} with ${entities.length} entities`
@@ -37,6 +40,7 @@ export const updateGraph = inngest.createFunction(
         const extractionResult: ExtractionResult = {
           emailId: sourceId,
           entities: entities,
+          relationships: relationships || [],
           spam: spam,
           extractedAt: new Date(extractedAt),
           cost,
@@ -64,7 +68,48 @@ export const updateGraph = inngest.createFunction(
       }
     });
 
-    // Step 2: Store in memory with embeddings
+    // Step 2: Store inline relationships to Weaviate
+    const relationshipUpdateResult = await step.run('store-inline-relationships', async () => {
+      try {
+        const inlineRelationships = relationships || [];
+        if (inlineRelationships.length === 0) {
+          console.log(`${LOG_PREFIX} No inline relationships to store for ${sourceId}`);
+          return { success: true, count: 0 };
+        }
+
+        // Convert inline relationships to InferredRelationship format
+        const inferredRelationships: InferredRelationship[] = inlineRelationships.map((rel: any) => ({
+          fromEntityType: rel.fromType as EntityType,
+          fromEntityValue: rel.fromValue,
+          toEntityType: rel.toType as EntityType,
+          toEntityValue: rel.toValue,
+          relationshipType: rel.relationshipType,
+          confidence: rel.confidence,
+          evidence: rel.evidence,
+          sourceId: sourceId,
+          inferredAt: extractedAt,
+          userId: userId,
+        }));
+
+        const savedCount = await saveRelationships(inferredRelationships, userId);
+        console.log(`${LOG_PREFIX} Stored ${savedCount} inline relationships for ${sourceId}`);
+
+        return {
+          success: true,
+          count: savedCount,
+          total: inlineRelationships.length,
+        };
+      } catch (error) {
+        console.error(`${LOG_PREFIX} Error storing inline relationships:`, error);
+        // Don't fail the entire operation if relationship storage fails
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    });
+
+    // Step 3: Store in memory with embeddings
     const memoryUpdateResult = await step.run('update-memory-embeddings', async () => {
       try {
         // Create a summary of the entities for storage
@@ -111,14 +156,19 @@ export const updateGraph = inngest.createFunction(
       }
     });
 
-    // Step 3: Log completion metrics
+    // Step 4: Log completion metrics
     await step.run('log-metrics', async () => {
-      console.log(`${LOG_PREFIX} Completed graph and memory update for ${sourceId}`);
+      console.log(`${LOG_PREFIX} Completed graph, relationship, and memory update for ${sourceId}`);
       console.log(`${LOG_PREFIX} Graph update: ${graphUpdateResult.success ? 'SUCCESS' : 'FAILED'}`);
+      console.log(`${LOG_PREFIX} Relationship update: ${relationshipUpdateResult.success ? 'SUCCESS' : 'FAILED'}`);
       console.log(`${LOG_PREFIX} Memory update: ${memoryUpdateResult.success ? 'SUCCESS' : 'FAILED'}`);
 
       if (graphUpdateResult.success && 'nodesCreated' in graphUpdateResult) {
         console.log(`${LOG_PREFIX}   - Nodes created: ${graphUpdateResult.nodesCreated}`);
+      }
+
+      if (relationshipUpdateResult.success && 'count' in relationshipUpdateResult) {
+        console.log(`${LOG_PREFIX}   - Relationships stored: ${relationshipUpdateResult.count}`);
       }
 
       if (memoryUpdateResult.success && 'memoryId' in memoryUpdateResult) {
@@ -132,7 +182,9 @@ export const updateGraph = inngest.createFunction(
       sourceId,
       sourceType,
       entitiesCount: entities.length,
+      relationshipsCount: (relationships || []).length,
       graphUpdate: graphUpdateResult,
+      relationshipUpdate: relationshipUpdateResult,
       memoryUpdate: memoryUpdateResult,
       completedAt: new Date().toISOString(),
     };

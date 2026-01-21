@@ -71,6 +71,20 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> 
   location: { bg: '#fce7f3', text: '#9f1239', border: '#ec4899' },
 };
 
+const TYPE_ICONS: Record<string, string> = {
+  person: 'P',
+  company: 'C',
+  project: 'J',
+  topic: 'T',
+  location: 'L',
+  action_item: '!',
+};
+
+// Helper function for label truncation
+const truncateLabel = (label: string, maxLength: number = 15): string => {
+  return label.length > maxLength ? label.slice(0, maxLength - 1) + '\u2026' : label;
+};
+
 const RELATIONSHIP_TYPES = [
   'WORKS_WITH', 'REPORTS_TO', 'WORKS_FOR', 'LEADS', 'WORKS_ON', 'EXPERT_IN',
   'LOCATED_IN', 'PARTNERS_WITH', 'COMPETES_WITH', 'OWNS', 'RELATED_TO',
@@ -111,6 +125,79 @@ export default function RelationshipsPage() {
     error?: string;
   } | null>(null);
   const graphRef = useRef<any>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+
+  // Custom node rendering with type letter inside and label below
+  const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const graphNode = node as GraphNode;
+    const radius = Math.sqrt(Math.max(4, graphNode.connectionCount * 2)) * 4;
+    const nodeColor = TYPE_COLORS[graphNode.type]?.border || '#9ca3af';
+    const bgColor = TYPE_COLORS[graphNode.type]?.bg || '#f3f4f6';
+    const typeIcon = TYPE_ICONS[graphNode.type] || '?';
+
+    // Node coordinates
+    const x = node.x || 0;
+    const y = node.y || 0;
+
+    // Draw filled circle with border
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+    ctx.strokeStyle = nodeColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw type letter inside node (always visible)
+    const fontSize = Math.max(radius * 0.8, 8);
+    ctx.font = `bold ${fontSize}px Sans-Serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = nodeColor;
+    ctx.fillText(typeIcon, x, y);
+
+    // Level-of-detail: show labels when zoomed in (globalScale > 0.8)
+    if (globalScale > 0.8) {
+      const label = truncateLabel(graphNode.value);
+      const labelFontSize = 10 / globalScale;
+      ctx.font = `${labelFontSize}px Sans-Serif`;
+
+      // Measure text for background
+      const textMetrics = ctx.measureText(label);
+      const textWidth = textMetrics.width;
+      const textHeight = labelFontSize;
+      const padding = 2;
+      const labelY = y + radius + 8;
+
+      // Draw white background for label
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillRect(
+        x - textWidth / 2 - padding,
+        labelY - textHeight / 2 - padding,
+        textWidth + padding * 2,
+        textHeight + padding * 2
+      );
+
+      // Draw label text
+      ctx.fillStyle = '#374151';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x, labelY);
+    }
+  }, []);
+
+  // Pointer area for click detection (matches visible node size)
+  const paintNodePointerArea = useCallback((node: any, color: string, ctx: CanvasRenderingContext2D) => {
+    const graphNode = node as GraphNode;
+    const radius = Math.sqrt(Math.max(4, graphNode.connectionCount * 2)) * 4;
+    const x = node.x || 0;
+    const y = node.y || 0;
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 5, 0, 2 * Math.PI); // Slightly larger for easier clicking
+    ctx.fillStyle = color;
+    ctx.fill();
+  }, []);
 
   const fetchGraph = useCallback(async () => {
     setIsLoading(true);
@@ -153,6 +240,38 @@ export default function RelationshipsPage() {
         edgeCount: graphData.edges.length,
         sampleNode: graphData.nodes[0],
         sampleNodeValue: graphData.nodes[0]?.value,
+      });
+    }
+  }, [graphData]);
+
+  // Configure forces after graph mounts for better node spacing
+  useEffect(() => {
+    if (graphRef.current && graphData?.nodes.length) {
+      const fg = graphRef.current;
+
+      // Configure charge force (node repulsion)
+      const chargeForce = fg.d3Force('charge');
+      if (chargeForce) {
+        chargeForce.strength(-300);
+      }
+
+      // Configure link force (edge length)
+      const linkForce = fg.d3Force('link');
+      if (linkForce) {
+        linkForce.distance(80);
+      }
+
+      // Add collision force to prevent node overlap
+      // Dynamic import d3-force for collision detection
+      import('d3-force').then(({ forceCollide }) => {
+        fg.d3Force('collision', forceCollide((node: any) => {
+          const graphNode = node as GraphNode;
+          const radius = Math.sqrt(Math.max(4, graphNode.connectionCount * 2)) * 4;
+          return radius + 15; // radius + padding for labels
+        }));
+
+        // Reheat simulation to apply new forces
+        fg.d3ReheatSimulation();
       });
     }
   }, [graphData]);
@@ -591,11 +710,13 @@ export default function RelationshipsPage() {
         {!isLoading && !error && filteredData && filteredData.nodes.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1.5rem' }}>
             <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', height: '600px' }}>
-              <ForceGraph2D ref={graphRef} graphData={filteredData}
+              <ForceGraph2D
+                ref={graphRef}
+                graphData={filteredData}
+                nodeCanvasObject={paintNode}
+                nodeCanvasObjectMode={() => 'replace'}
+                nodePointerAreaPaint={paintNodePointerArea}
                 nodeLabel={(node: any) => `${node.value} (${node.type})`}
-                nodeColor={(node: any) => getNodeColor(node as GraphNode)}
-                nodeRelSize={8}
-                nodeVal={(node: any) => Math.max(4, (node as GraphNode).connectionCount * 2)}
                 linkLabel={(link: any) => link.type}
                 linkColor={() => '#94a3b8'}
                 linkWidth={(link: any) => Math.max(1, (link as GraphEdge).confidence * 3)}
@@ -603,8 +724,13 @@ export default function RelationshipsPage() {
                 linkDirectionalArrowRelPos={1}
                 onNodeClick={handleNodeClick}
                 onLinkClick={handleLinkClick}
+                onZoom={(transform: any) => setZoomLevel(transform.k)}
+                warmupTicks={50}
                 cooldownTicks={100}
-                onEngineStop={() => graphRef.current?.zoomToFit(400)} />
+                d3AlphaDecay={0.02}
+                d3VelocityDecay={0.3}
+                onEngineStop={() => graphRef.current?.zoomToFit(400)}
+              />
             </div>
 
             <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem', height: '600px', overflowY: 'auto' }}>
@@ -665,7 +791,21 @@ export default function RelationshipsPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
               {Object.entries(TYPE_COLORS).map(([type, colors]) => (
                 <div key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: colors.border }} />
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: colors.bg,
+                    border: `2px solid ${colors.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.625rem',
+                    fontWeight: '700',
+                    color: colors.border,
+                  }}>
+                    {TYPE_ICONS[type] || '?'}
+                  </div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'capitalize' }}>{type.replace('_', ' ')}</span>
                 </div>
               ))}

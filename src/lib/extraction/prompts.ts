@@ -82,6 +82,32 @@ Classify if this email is spam/promotional/low-value based on:
 - Phishing attempts or suspicious patterns
 - Low relevance to recipient
 
+**Relationship Extraction:**
+Also identify meaningful relationships between the entities you extract:
+RELATIONSHIP TYPES (use exactly these):
+- WORKS_WITH: Two people who work together/collaborate
+- REPORTS_TO: Person reports to another person (hierarchy)
+- WORKS_FOR: Person works for a company
+- LEADS: Person leads/manages a project
+- WORKS_ON: Person works on a project
+- EXPERT_IN: Person has expertise in a topic
+- LOCATED_IN: Person or company is located in a place
+- PARTNERS_WITH: Two companies partner together
+- COMPETES_WITH: Two companies compete
+- OWNS: Company owns/runs a project
+- RELATED_TO: Projects or topics are related
+- DEPENDS_ON: Project depends on another project
+- PART_OF: Project is part of a larger project
+- SUBTOPIC_OF: Topic is a subtopic of another
+- ASSOCIATED_WITH: Topics are associated
+
+RELATIONSHIP RULES:
+1. Only infer relationships with clear evidence in the content
+2. Confidence should reflect how explicitly stated (0.5-1.0)
+3. Include a brief quote as evidence supporting each relationship
+4. Focus on meaningful relationships, not every possible connection
+5. Maximum 5 relationships per email
+
 **Instructions:**
 - Extract all entities with confidence scores (0.0 to 1.0)
 - Normalize names (e.g., "Bob" might be "Robert")
@@ -140,6 +166,14 @@ Classify if this email is spam/promotional/low-value based on:
       "context": "From: John Doe <john@example.com>"
     },
     {
+      "type": "company",
+      "value": "Acme Corp",
+      "normalized": "acme_corp",
+      "confidence": 0.9,
+      "source": "body",
+      "context": "John from Acme Corp"
+    },
+    {
       "type": "action_item",
       "value": "Review the proposal by Friday",
       "normalized": "review_proposal",
@@ -157,6 +191,17 @@ Classify if this email is spam/promotional/low-value based on:
       "confidence": 0.95,
       "source": "body",
       "context": "by Friday (January 10, 2025)"
+    }
+  ],
+  "relationships": [
+    {
+      "fromType": "person",
+      "fromValue": "John Doe",
+      "toType": "company",
+      "toValue": "Acme Corp",
+      "relationshipType": "WORKS_FOR",
+      "confidence": 0.85,
+      "evidence": "John from Acme Corp mentioned..."
     }
   ]
 }
@@ -275,6 +320,28 @@ ${sources.join('\n')}
 6. **location** - Geographic locations (cities, countries, addresses, meeting rooms)
 7. **action_item** - Tasks, todos, and action items mentioned in description
 
+**Relationship Extraction:**
+Also identify meaningful relationships between the entities you extract:
+RELATIONSHIP TYPES (use exactly these):
+- WORKS_WITH: Two people who work together/collaborate
+- REPORTS_TO: Person reports to another person (hierarchy)
+- WORKS_FOR: Person works for a company
+- LEADS: Person leads/manages a project
+- WORKS_ON: Person works on a project
+- EXPERT_IN: Person has expertise in a topic
+- LOCATED_IN: Person or company is located in a place
+- PARTNERS_WITH: Two companies partner together
+- OWNS: Company owns/runs a project
+- RELATED_TO: Projects or topics are related
+- PART_OF: Project is part of a larger project
+
+RELATIONSHIP RULES:
+1. Only infer relationships with clear evidence in the content
+2. Confidence should reflect how explicitly stated (0.5-1.0)
+3. Include a brief quote as evidence supporting each relationship
+4. Focus on meaningful relationships, not every possible connection
+5. Maximum 5 relationships per event
+
 **Instructions:**
 - Extract all entities with confidence scores (0.0 to 1.0)
 - Normalize names (e.g., "Bob" might be "Robert")
@@ -302,6 +369,14 @@ ${sources.join('\n')}
       "context": "Attendee: John Doe <john@example.com>"
     },
     {
+      "type": "company",
+      "value": "Acme Corp",
+      "normalized": "acme_corp",
+      "confidence": 0.9,
+      "source": "metadata",
+      "context": "Meeting with Acme Corp team"
+    },
+    {
       "type": "location",
       "value": "Conference Room A",
       "normalized": "conference_room_a",
@@ -326,6 +401,17 @@ ${sources.join('\n')}
       "context": "Please prepare budget forecast before the meeting",
       "assignee": "team",
       "priority": "medium"
+    }
+  ],
+  "relationships": [
+    {
+      "fromType": "person",
+      "fromValue": "John Doe",
+      "toType": "company",
+      "toValue": "Acme Corp",
+      "relationshipType": "WORKS_FOR",
+      "confidence": 0.8,
+      "evidence": "John Doe attending meeting with Acme Corp team"
     }
   ]
 }

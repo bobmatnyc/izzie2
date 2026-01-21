@@ -10,6 +10,9 @@ import { MODELS } from '@/lib/ai/models';
 import type { Email, CalendarEvent } from '../google/types';
 import type {
   Entity,
+  EntityType,
+  InlineRelationship,
+  InlineRelationshipType,
   ExtractionResult,
   CalendarExtractionResult,
   ExtractionConfig,
@@ -70,7 +73,7 @@ export class EntityExtractor {
         ],
         {
           model: MODELS.CLASSIFIER, // Mistral Small
-          maxTokens: 1000,
+          maxTokens: 1500, // Increased for relationships
           temperature: 0.1, // Low temperature for consistent extraction
           logCost: false, // Avoid cluttering logs
         }
@@ -84,9 +87,16 @@ export class EntityExtractor {
         (entity) => entity.confidence >= this.config.minConfidence
       );
 
+      // Filter relationships by confidence threshold (use slightly lower threshold)
+      const minRelConfidence = Math.max(0.5, this.config.minConfidence - 0.1);
+      const filteredRelationships = parsed.relationships.filter(
+        (rel) => rel.confidence >= minRelConfidence
+      );
+
       return {
         emailId: email.id,
         entities: filteredEntities,
+        relationships: filteredRelationships,
         spam: parsed.spam,
         extractedAt: new Date(),
         cost: response.usage.cost,
@@ -98,6 +108,7 @@ export class EntityExtractor {
       return {
         emailId: email.id,
         entities: [],
+        relationships: [],
         spam: { isSpam: false, spamScore: 0 },
         extractedAt: new Date(),
         cost: 0,
@@ -125,7 +136,7 @@ export class EntityExtractor {
         ],
         {
           model: MODELS.CLASSIFIER, // Mistral Small
-          maxTokens: 1000,
+          maxTokens: 1500, // Increased for relationships
           temperature: 0.1, // Low temperature for consistent extraction
           logCost: false, // Avoid cluttering logs
         }
@@ -139,9 +150,16 @@ export class EntityExtractor {
         (entity) => entity.confidence >= this.config.minConfidence
       );
 
+      // Filter relationships by confidence threshold (use slightly lower threshold)
+      const minRelConfidence = Math.max(0.5, this.config.minConfidence - 0.1);
+      const filteredRelationships = parsed.relationships.filter(
+        (rel) => rel.confidence >= minRelConfidence
+      );
+
       return {
         eventId: event.id,
         entities: filteredEntities,
+        relationships: filteredRelationships,
         spam: { isSpam: false, spamScore: 0 }, // Calendar events are never spam
         extractedAt: new Date(),
         cost: response.usage.cost,
@@ -153,6 +171,7 @@ export class EntityExtractor {
       return {
         eventId: event.id,
         entities: [],
+        relationships: [],
         spam: { isSpam: false, spamScore: 0 },
         extractedAt: new Date(),
         cost: 0,
@@ -364,6 +383,7 @@ export class EntityExtractor {
    */
   private parseExtractionResponse(content: string): {
     entities: Entity[];
+    relationships: InlineRelationship[];
     spam: { isSpam: boolean; spamScore: number; spamReason?: string };
   } {
     try {
@@ -373,6 +393,7 @@ export class EntityExtractor {
         console.warn(`${LOG_PREFIX} No JSON found in response`);
         return {
           entities: [],
+          relationships: [],
           spam: { isSpam: false, spamScore: 0 },
         };
       }
@@ -384,6 +405,7 @@ export class EntityExtractor {
         console.warn(`${LOG_PREFIX} Invalid response structure - missing or invalid 'entities' array`);
         return {
           entities: [],
+          relationships: [],
           spam: { isSpam: false, spamScore: 0 },
         };
       }
@@ -406,7 +428,25 @@ export class EntityExtractor {
         spamReason: parsed.spam?.spamReason,
       };
 
-      return { entities: validEntities, spam };
+      // Parse relationships with validation
+      const validRelationships: InlineRelationship[] = [];
+      if (Array.isArray(parsed.relationships)) {
+        for (const rel of parsed.relationships) {
+          if (this.isValidRelationship(rel)) {
+            validRelationships.push({
+              fromType: rel.fromType as EntityType,
+              fromValue: rel.fromValue,
+              toType: rel.toType as EntityType,
+              toValue: rel.toValue,
+              relationshipType: rel.relationshipType as InlineRelationshipType,
+              confidence: Math.min(1, Math.max(0, rel.confidence || 0.5)),
+              evidence: rel.evidence || '',
+            });
+          }
+        }
+      }
+
+      return { entities: validEntities, relationships: validRelationships, spam };
     } catch (error) {
       if (error instanceof SyntaxError) {
         console.error(`${LOG_PREFIX} JSON parsing failed - malformed response from LLM`);
@@ -418,9 +458,41 @@ export class EntityExtractor {
       }
       return {
         entities: [],
+        relationships: [],
         spam: { isSpam: false, spamScore: 0 },
       };
     }
+  }
+
+  /**
+   * Validate that a relationship has valid structure and types
+   */
+  private isValidRelationship(rel: any): boolean {
+    // Check required fields exist
+    if (!rel.fromType || !rel.fromValue || !rel.toType || !rel.toValue || !rel.relationshipType) {
+      console.warn(`${LOG_PREFIX} Invalid relationship structure:`, rel);
+      return false;
+    }
+
+    // Valid entity types
+    const validEntityTypes: EntityType[] = ['person', 'company', 'project', 'date', 'topic', 'location', 'action_item'];
+    if (!validEntityTypes.includes(rel.fromType) || !validEntityTypes.includes(rel.toType)) {
+      console.warn(`${LOG_PREFIX} Invalid entity type in relationship: ${rel.fromType} -> ${rel.toType}`);
+      return false;
+    }
+
+    // Valid relationship types
+    const validRelTypes: InlineRelationshipType[] = [
+      'WORKS_WITH', 'REPORTS_TO', 'WORKS_FOR', 'LEADS', 'WORKS_ON', 'EXPERT_IN', 'LOCATED_IN',
+      'PARTNERS_WITH', 'COMPETES_WITH', 'OWNS', 'RELATED_TO', 'DEPENDS_ON', 'PART_OF',
+      'SUBTOPIC_OF', 'ASSOCIATED_WITH'
+    ];
+    if (!validRelTypes.includes(rel.relationshipType)) {
+      console.warn(`${LOG_PREFIX} Unknown relationship type: ${rel.relationshipType}`);
+      return false;
+    }
+
+    return true;
   }
 
   /**

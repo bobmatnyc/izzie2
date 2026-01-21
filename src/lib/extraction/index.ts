@@ -6,10 +6,18 @@
 
 export { EntityExtractor, getEntityExtractor } from './entity-extractor';
 export { buildExtractionPrompt, buildBatchExtractionPrompt } from './prompts';
+export {
+  convertToInferredRelationship,
+  convertToInferredRelationships,
+  deduplicateInlineRelationships,
+} from './relationship-converter';
 export type {
   EntityType,
   Entity,
+  InlineRelationship,
+  InlineRelationshipType,
   ExtractionResult,
+  CalendarExtractionResult,
   ExtractionConfig,
   EntityFrequency,
   EntityCoOccurrence,

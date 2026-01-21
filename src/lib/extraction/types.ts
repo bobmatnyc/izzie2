@@ -18,6 +18,46 @@ export type EntityType =
   | 'action_item';
 
 /**
+ * Relationship types for inline extraction during entity discovery
+ * Matches the types defined in lib/relationships/types.ts
+ */
+export type InlineRelationshipType =
+  // Person relationships
+  | 'WORKS_WITH'        // Person ↔ Person (colleagues)
+  | 'REPORTS_TO'        // Person → Person (hierarchy)
+  | 'WORKS_FOR'         // Person → Company
+  | 'LEADS'             // Person → Project
+  | 'WORKS_ON'          // Person → Project
+  | 'EXPERT_IN'         // Person → Topic
+  | 'LOCATED_IN'        // Person/Company → Location
+  // Company relationships
+  | 'PARTNERS_WITH'     // Company ↔ Company
+  | 'COMPETES_WITH'     // Company ↔ Company
+  | 'OWNS'              // Company → Project
+  // Project relationships
+  | 'RELATED_TO'        // Project ↔ Project
+  | 'DEPENDS_ON'        // Project → Project
+  | 'PART_OF'           // Project → Project (parent)
+  // Topic relationships
+  | 'SUBTOPIC_OF'       // Topic → Topic
+  | 'ASSOCIATED_WITH';  // Topic ↔ Topic
+
+/**
+ * Relationship extracted inline during entity extraction
+ * Includes source and target entity types/values, relationship type,
+ * confidence score, and supporting evidence from the content
+ */
+export interface InlineRelationship {
+  fromType: EntityType;
+  fromValue: string;      // Entity value (e.g., "John Doe")
+  toType: EntityType;
+  toValue: string;        // Entity value (e.g., "Acme Corp")
+  relationshipType: InlineRelationshipType;
+  confidence: number;     // 0-1 confidence score
+  evidence: string;       // Quote/context supporting this relationship
+}
+
+/**
  * Extracted entity with confidence score and metadata
  */
 export interface Entity {
@@ -48,6 +88,7 @@ export interface SpamClassification {
 export interface ExtractionResult {
   emailId: string;
   entities: Entity[];
+  relationships: InlineRelationship[]; // Relationships extracted inline with entities
   spam: SpamClassification; // Spam detection
   extractedAt: Date;
   cost: number; // API cost for tracking
@@ -60,6 +101,7 @@ export interface ExtractionResult {
 export interface CalendarExtractionResult {
   eventId: string;
   entities: Entity[];
+  relationships: InlineRelationship[]; // Relationships extracted inline with entities
   spam: SpamClassification; // Always false for calendar events
   extractedAt: Date;
   cost: number; // API cost for tracking
