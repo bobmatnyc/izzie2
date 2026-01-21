@@ -80,16 +80,86 @@ const TYPE_ICONS: Record<string, string> = {
   action_item: '!',
 };
 
-// Helper function for label truncation
-const truncateLabel = (label: string, maxLength: number = 15): string => {
-  return label.length > maxLength ? label.slice(0, maxLength - 1) + '\u2026' : label;
+// Helper function for smart label truncation based on entity type
+const truncateLabel = (label: string, entityType: string): string => {
+  switch (entityType) {
+    case 'person': {
+      // Person: "John Smith" → "John S."
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2 && label.length > 10) {
+        const firstName = parts[0];
+        const lastInitial = parts[parts.length - 1][0];
+        return `${firstName} ${lastInitial}.`;
+      }
+      return label.length > 12 ? label.slice(0, 11) + '\u2026' : label;
+    }
+    case 'company': {
+      // Company: "Acme Corporation" → "Acme"
+      // Common suffixes to remove
+      const suffixes = [' Inc', ' Inc.', ' LLC', ' Ltd', ' Ltd.', ' Corp', ' Corp.', ' Corporation', ' Company', ' Co', ' Co.'];
+      let shortened = label;
+      for (const suffix of suffixes) {
+        if (shortened.toLowerCase().endsWith(suffix.toLowerCase())) {
+          shortened = shortened.slice(0, -suffix.length).trim();
+          break;
+        }
+      }
+      return shortened.length > 12 ? shortened.slice(0, 11) + '\u2026' : shortened;
+    }
+    default:
+      // Default: 12 chars max with ellipsis
+      return label.length > 12 ? label.slice(0, 11) + '\u2026' : label;
+  }
 };
 
 const RELATIONSHIP_TYPES = [
   'WORKS_WITH', 'REPORTS_TO', 'WORKS_FOR', 'LEADS', 'WORKS_ON', 'EXPERT_IN',
   'LOCATED_IN', 'PARTNERS_WITH', 'COMPETES_WITH', 'OWNS', 'RELATED_TO',
-  'DEPENDS_ON', 'PART_OF', 'SUBTOPIC_OF', 'ASSOCIATED_WITH'
+  'DEPENDS_ON', 'PART_OF', 'SUBTOPIC_OF', 'ASSOCIATED_WITH',
+  'FAMILY_OF', 'MARRIED_TO', 'SIBLING_OF'
 ];
+
+// Relationship category colors for link visualization
+const RELATIONSHIP_CATEGORIES: Record<string, { types: string[]; color: string; dashArray?: string; label: string }> = {
+  professional: {
+    types: ['WORKS_WITH', 'REPORTS_TO', 'WORKS_FOR', 'LEADS', 'WORKS_ON', 'EXPERT_IN'],
+    color: '#3b82f6', // blue
+    label: 'Professional',
+  },
+  business: {
+    types: ['PARTNERS_WITH', 'COMPETES_WITH', 'OWNS'],
+    color: '#22c55e', // green
+    label: 'Business',
+  },
+  structural: {
+    types: ['RELATED_TO', 'DEPENDS_ON', 'PART_OF', 'SUBTOPIC_OF', 'ASSOCIATED_WITH'],
+    color: '#6b7280', // gray
+    dashArray: '5,5', // dashed line
+    label: 'Structural',
+  },
+  geographic: {
+    types: ['LOCATED_IN'],
+    color: '#a855f7', // purple
+    dashArray: '2,3', // dotted line
+    label: 'Geographic',
+  },
+  personal: {
+    types: ['FAMILY_OF', 'MARRIED_TO', 'SIBLING_OF'],
+    color: '#ec4899', // pink
+    label: 'Personal',
+  },
+};
+
+// Helper to get category info for a relationship type
+const getRelationshipCategory = (relType: string): { color: string; dashArray?: string; category: string } => {
+  for (const [category, config] of Object.entries(RELATIONSHIP_CATEGORIES)) {
+    if (config.types.includes(relType)) {
+      return { color: config.color, dashArray: config.dashArray, category };
+    }
+  }
+  // Default fallback
+  return { color: '#94a3b8', category: 'other' };
+};
 
 const ENTITY_TYPES = [
   { value: '', label: 'All Types' },
@@ -136,7 +206,7 @@ export default function RelationshipsPage() {
   const graphRef = useRef<any>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  // Custom node rendering with type letter inside and label below
+  // Custom node rendering with type letter inside and label below (always visible)
   const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const graphNode = node as GraphNode;
     const radius = Math.sqrt(Math.max(4, graphNode.connectionCount * 2)) * 4;
@@ -165,34 +235,33 @@ export default function RelationshipsPage() {
     ctx.fillStyle = nodeColor;
     ctx.fillText(typeIcon, x, y);
 
-    // Level-of-detail: show labels when zoomed in (globalScale > 0.8)
-    if (globalScale > 0.8) {
-      const label = truncateLabel(graphNode.value);
-      const labelFontSize = 10 / globalScale;
-      ctx.font = `${labelFontSize}px Sans-Serif`;
+    // Always show labels at all zoom levels with smart truncation
+    const label = truncateLabel(graphNode.value, graphNode.type);
+    // Scale font size based on zoom, but keep minimum readable size
+    const labelFontSize = Math.max(8, Math.min(12, 10 / globalScale));
+    ctx.font = `${labelFontSize}px Sans-Serif`;
 
-      // Measure text for background
-      const textMetrics = ctx.measureText(label);
-      const textWidth = textMetrics.width;
-      const textHeight = labelFontSize;
-      const padding = 2;
-      const labelY = y + radius + 8;
+    // Measure text for background
+    const textMetrics = ctx.measureText(label);
+    const textWidth = textMetrics.width;
+    const textHeight = labelFontSize;
+    const padding = 2;
+    const labelY = y + radius + 8 / globalScale;
 
-      // Draw white background for label
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.fillRect(
-        x - textWidth / 2 - padding,
-        labelY - textHeight / 2 - padding,
-        textWidth + padding * 2,
-        textHeight + padding * 2
-      );
+    // Draw white background for label
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillRect(
+      x - textWidth / 2 - padding,
+      labelY - textHeight / 2 - padding,
+      textWidth + padding * 2,
+      textHeight + padding * 2
+    );
 
-      // Draw label text
-      ctx.fillStyle = '#374151';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, x, labelY);
-    }
+    // Draw label text
+    ctx.fillStyle = '#374151';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, labelY);
   }, []);
 
   // Pointer area for click detection (matches visible node size)
@@ -308,6 +377,81 @@ export default function RelationshipsPage() {
   const handleNodeClick = useCallback((node: any) => { setSelectedNode(node); setSelectedEdge(null); }, []);
   const handleLinkClick = useCallback((link: any) => { setSelectedEdge(link); setSelectedNode(null); }, []);
   const getNodeEdges = useCallback((nodeId: string) => graphData?.edges.filter(e => e.source === nodeId || e.target === nodeId) || [], [graphData]);
+
+  // Get unique relationship types for a node (for enhanced tooltip)
+  const getNodeRelationshipTypes = useCallback((nodeId: string) => {
+    const edges = graphData?.edges.filter(e => e.source === nodeId || e.target === nodeId) || [];
+    const types = new Set(edges.map(e => e.type));
+    return Array.from(types);
+  }, [graphData]);
+
+  // Enhanced tooltip generator for nodes
+  const generateNodeTooltip = useCallback((node: any) => {
+    const graphNode = node as GraphNode;
+    const relTypes = getNodeRelationshipTypes(graphNode.id);
+    const relTypesDisplay = relTypes.length > 0 ? relTypes.join(', ') : 'None';
+
+    return `${graphNode.value}\nType: ${graphNode.type.charAt(0).toUpperCase() + graphNode.type.slice(1)}\nConnections: ${graphNode.connectionCount}\nRelationships: ${relTypesDisplay}`;
+  }, [getNodeRelationshipTypes]);
+
+  // Custom link rendering with category-based colors and dash patterns
+  const paintLink = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const graphEdge = link as GraphEdge;
+    const { color, dashArray } = getRelationshipCategory(graphEdge.type);
+
+    // Get source and target coordinates
+    const source = link.source;
+    const target = link.target;
+    const sx = source.x || 0;
+    const sy = source.y || 0;
+    const tx = target.x || 0;
+    const ty = target.y || 0;
+
+    // Calculate link width based on confidence
+    const lineWidth = Math.max(1, graphEdge.confidence * 3);
+
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+
+    // Apply dash pattern if specified
+    if (dashArray) {
+      const dashParts = dashArray.split(',').map(Number);
+      ctx.setLineDash(dashParts);
+    } else {
+      ctx.setLineDash([]);
+    }
+
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+
+    // Reset dash pattern
+    ctx.setLineDash([]);
+
+    // Draw arrowhead
+    const arrowLength = 6;
+    const angle = Math.atan2(ty - sy, tx - sx);
+
+    // Calculate position for arrowhead (at the end of the link)
+    const targetRadius = Math.sqrt(Math.max(4, (target.connectionCount || 1) * 2)) * 4;
+    const arrowX = tx - Math.cos(angle) * (targetRadius + 2);
+    const arrowY = ty - Math.sin(angle) * (targetRadius + 2);
+
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(
+      arrowX - arrowLength * Math.cos(angle - Math.PI / 6),
+      arrowY - arrowLength * Math.sin(angle - Math.PI / 6)
+    );
+    ctx.lineTo(
+      arrowX - arrowLength * Math.cos(angle + Math.PI / 6),
+      arrowY - arrowLength * Math.sin(angle + Math.PI / 6)
+    );
+    ctx.closePath();
+    ctx.fill();
+  }, []);
 
   // Helper to get ID from source/target (handles both string IDs and mutated node objects)
   const getEdgeNodeId = (sourceOrTarget: any): string => {
@@ -879,12 +1023,10 @@ export default function RelationshipsPage() {
                 nodeCanvasObject={paintNode}
                 nodeCanvasObjectMode={() => 'replace'}
                 nodePointerAreaPaint={paintNodePointerArea}
-                nodeLabel={(node: any) => `${node.value} (${node.type})`}
-                linkLabel={(link: any) => link.type}
-                linkColor={() => '#94a3b8'}
-                linkWidth={(link: any) => Math.max(1, (link as GraphEdge).confidence * 3)}
-                linkDirectionalArrowLength={6}
-                linkDirectionalArrowRelPos={1}
+                nodeLabel={generateNodeTooltip}
+                linkCanvasObject={paintLink}
+                linkCanvasObjectMode={() => 'replace'}
+                linkLabel={(link: any) => `${link.type} (${Math.round(link.confidence * 100)}% confidence)`}
                 onNodeClick={handleNodeClick}
                 onLinkClick={handleLinkClick}
                 onZoom={(transform: any) => setZoomLevel(transform.k)}
@@ -950,8 +1092,8 @@ export default function RelationshipsPage() {
 
         {!isLoading && filteredData && filteredData.nodes.length > 0 && (
           <div style={{ marginTop: '1.5rem', backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1rem' }}>
-            <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.75rem' }}>Legend</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.75rem' }}>Entity Types</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
               {Object.entries(TYPE_COLORS).map(([type, colors]) => (
                 <div key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <div style={{
@@ -970,6 +1112,31 @@ export default function RelationshipsPage() {
                     {TYPE_ICONS[type] || '?'}
                   </div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'capitalize' }}>{type.replace('_', ' ')}</span>
+                </div>
+              ))}
+            </div>
+
+            <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.75rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>Relationship Types</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+              {Object.entries(RELATIONSHIP_CATEGORIES).map(([category, config]) => (
+                <div key={category} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <svg width="24" height="12" viewBox="0 0 24 12">
+                    <line
+                      x1="0"
+                      y1="6"
+                      x2="24"
+                      y2="6"
+                      stroke={config.color}
+                      strokeWidth="2"
+                      strokeDasharray={config.dashArray || 'none'}
+                    />
+                    {/* Arrowhead */}
+                    <polygon
+                      points="24,6 18,3 18,9"
+                      fill={config.color}
+                    />
+                  </svg>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{config.label}</span>
                 </div>
               ))}
             </div>

@@ -2,7 +2,7 @@ import type { EntityType } from '../extraction/types';
 
 // Relationship types between entities
 export type RelationshipType =
-  // Person relationships
+  // Person relationships (professional)
   | 'WORKS_WITH'        // Person ↔ Person (colleagues)
   | 'REPORTS_TO'        // Person → Person (hierarchy)
   | 'WORKS_FOR'         // Person → Company
@@ -10,6 +10,10 @@ export type RelationshipType =
   | 'WORKS_ON'          // Person → Project
   | 'EXPERT_IN'         // Person → Topic
   | 'LOCATED_IN'        // Person/Company → Location
+  // Person relationships (familial/personal)
+  | 'FAMILY_OF'         // Person ↔ Person (general family relation)
+  | 'MARRIED_TO'        // Person ↔ Person (spouse)
+  | 'SIBLING_OF'        // Person ↔ Person (brother/sister)
   // Company relationships
   | 'PARTNERS_WITH'     // Company ↔ Company
   | 'COMPETES_WITH'     // Company ↔ Company

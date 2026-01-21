@@ -13,6 +13,11 @@ const VALID_RELATIONSHIPS: Record<RelationshipType, [EntityType[], EntityType[]]
   'WORKS_ON': [['person'], ['project']],
   'EXPERT_IN': [['person'], ['topic']],
   'LOCATED_IN': [['person', 'company'], ['location']],
+  // Familial/personal relationships
+  'FAMILY_OF': [['person'], ['person']],
+  'MARRIED_TO': [['person'], ['person']],
+  'SIBLING_OF': [['person'], ['person']],
+  // Company relationships
   'PARTNERS_WITH': [['company'], ['company']],
   'COMPETES_WITH': [['company'], ['company']],
   'OWNS': [['company'], ['project']],
@@ -37,6 +42,9 @@ RELATIONSHIP TYPES (use exactly these):
 - WORKS_ON: Person works on a project
 - EXPERT_IN: Person has expertise in a topic
 - LOCATED_IN: Person or company is located in a place
+- FAMILY_OF: Person is a family member of another person
+- MARRIED_TO: Person is married/spouse of another person
+- SIBLING_OF: Person is brother/sister of another person
 - PARTNERS_WITH: Two companies partner together
 - COMPETES_WITH: Two companies compete
 - OWNS: Company owns/runs a project
