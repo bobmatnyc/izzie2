@@ -42,7 +42,8 @@
     "benchmark:hybrid": "tsx src/benchmarks/run-benchmarks.ts hybrid",
     "env:backup": "tsx scripts/env-backup.ts",
     "env:pull": "tsx scripts/env-pull.ts",
-    "env:validate": "tsx scripts/env-validate.ts"
+    "env:validate": "tsx scripts/env-validate.ts",
+    "check:relationships": "tsx scripts/check-relationships.ts"
   },
   "repository": {
     "type": "git",

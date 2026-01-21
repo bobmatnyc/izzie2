@@ -118,6 +118,7 @@ export default function RelationshipsPage() {
       const params = new URLSearchParams();
       if (selectedEntityType) params.set('entityType', selectedEntityType);
       params.set('limit', '100');
+      params.set('_t', Date.now().toString());
       const response = await fetch(`/api/relationships/graph?` + params.toString(), { credentials: 'include' });
       if (response.ok) {
         setGraphData(await response.json());
@@ -142,6 +143,18 @@ export default function RelationshipsPage() {
   }, []);
 
   useEffect(() => { fetchGraph(); fetchStats(); }, [fetchGraph, fetchStats]);
+
+  // Debug logging for graph data
+  useEffect(() => {
+    if (graphData) {
+      console.log('[Relationships] Graph data loaded:', {
+        nodeCount: graphData.nodes.length,
+        edgeCount: graphData.edges.length,
+        sampleNode: graphData.nodes[0],
+        sampleNodeValue: graphData.nodes[0]?.value,
+      });
+    }
+  }, [graphData]);
 
   const filteredData = useMemo(() => {
     if (!graphData) return null;

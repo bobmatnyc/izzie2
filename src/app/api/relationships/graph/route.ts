@@ -28,14 +28,24 @@ export async function GET(request: NextRequest) {
       minConfidence,
     });
 
-    return NextResponse.json({
-      nodes: graph.nodes,
-      edges: graph.edges,
-      stats: {
-        nodeCount: graph.nodes.length,
-        edgeCount: graph.edges.length,
+    console.log(`${LOG_PREFIX} Returning ${graph.nodes.length} nodes, ${graph.edges.length} edges`);
+    console.log(`${LOG_PREFIX} Sample node:`, graph.nodes[0]);
+
+    return NextResponse.json(
+      {
+        nodes: graph.nodes,
+        edges: graph.edges,
+        stats: {
+          nodeCount: graph.nodes.length,
+          edgeCount: graph.edges.length,
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      }
+    );
   } catch (error) {
     console.error(`${LOG_PREFIX} Error:`, error);
     return NextResponse.json(
