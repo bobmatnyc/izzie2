@@ -167,6 +167,19 @@ export default function RelationshipsPage() {
   const handleLinkClick = useCallback((link: any) => { setSelectedEdge(link); setSelectedNode(null); }, []);
   const getNodeEdges = useCallback((nodeId: string) => graphData?.edges.filter(e => e.source === nodeId || e.target === nodeId) || [], [graphData]);
 
+  // Helper to get ID from source/target (handles both string IDs and mutated node objects)
+  const getEdgeNodeId = (sourceOrTarget: any): string => {
+    if (typeof sourceOrTarget === 'string') return sourceOrTarget;
+    if (sourceOrTarget && typeof sourceOrTarget === 'object' && sourceOrTarget.id) return sourceOrTarget.id;
+    return '';
+  };
+
+  // Helper to get node value by ID
+  const getNodeValue = (nodeId: string): string => {
+    const node = graphData?.nodes.find(n => n.id === nodeId);
+    return node?.value || 'Unknown';
+  };
+
   const runInference = useCallback(async () => {
     setIsInferring(true);
     setInferenceResult(null);
@@ -595,14 +608,17 @@ export default function RelationshipsPage() {
                   <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>{selectedNode.connectionCount} connections</p>
                   <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginTop: '1.5rem', marginBottom: '0.5rem' }}>Relationships</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {getNodeEdges(selectedNode.id).map((edge, i) => (
-                      <div key={i} style={{ padding: '0.5rem', backgroundColor: '#f9fafb', borderRadius: '6px', fontSize: '0.75rem' }}>
-                        <span style={{ fontWeight: '600' }}>{edge.type}</span>
-                        <span style={{ color: '#6b7280' }}>{' -> '}{edge.source === selectedNode.id
-                          ? graphData?.nodes.find(n => n.id === edge.target)?.value
-                          : graphData?.nodes.find(n => n.id === edge.source)?.value}</span>
-                      </div>
-                    ))}
+                    {getNodeEdges(selectedNode.id).map((edge, i) => {
+                      const sourceId = getEdgeNodeId(edge.source);
+                      const targetId = getEdgeNodeId(edge.target);
+                      const otherNodeId = sourceId === selectedNode.id ? targetId : sourceId;
+                      return (
+                        <div key={i} style={{ padding: '0.5rem', backgroundColor: '#f9fafb', borderRadius: '6px', fontSize: '0.75rem' }}>
+                          <span style={{ fontWeight: '600' }}>{edge.type}</span>
+                          <span style={{ color: '#6b7280' }}>{' -> '}{getNodeValue(otherNodeId)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -612,8 +628,8 @@ export default function RelationshipsPage() {
                   <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#eff6ff', color: '#1e40af', marginBottom: '0.75rem' }}>
                     {selectedEdge.type}
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: '#374151', marginTop: '0.5rem' }}><strong>From:</strong> {graphData?.nodes.find(n => n.id === selectedEdge.source)?.value}</p>
-                  <p style={{ fontSize: '0.875rem', color: '#374151' }}><strong>To:</strong> {graphData?.nodes.find(n => n.id === selectedEdge.target)?.value}</p>
+                  <p style={{ fontSize: '0.875rem', color: '#374151', marginTop: '0.5rem' }}><strong>From:</strong> {getNodeValue(getEdgeNodeId(selectedEdge.source))}</p>
+                  <p style={{ fontSize: '0.875rem', color: '#374151' }}><strong>To:</strong> {getNodeValue(getEdgeNodeId(selectedEdge.target))}</p>
                   <p style={{ fontSize: '0.875rem', color: '#374151', marginTop: '0.5rem' }}><strong>Confidence:</strong> {Math.round(selectedEdge.confidence * 100)}%</p>
                   {selectedEdge.evidence && (
                     <div style={{ marginTop: '1rem' }}>

@@ -284,8 +284,38 @@ export async function getAllRelationships(
   }
 }
 
+// Extended node type for frontend visualization (includes value/normalized for display)
+interface FrontendGraphNode {
+  id: string;
+  type: EntityType;
+  value: string;
+  normalized: string;
+  connectionCount: number;
+}
+
+// Extended edge type for frontend visualization (includes confidence/evidence)
+interface FrontendGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: RelationshipType;
+  confidence: number;
+  evidence?: string;
+}
+
+// Extended graph type for frontend
+interface FrontendRelationshipGraph {
+  nodes: FrontendGraphNode[];
+  edges: FrontendGraphEdge[];
+  stats: {
+    nodeCount: number;
+    edgeCount: number;
+  };
+}
+
 /**
  * Build a graph representation for visualization
+ * Returns data formatted for the frontend dashboard
  */
 export async function buildRelationshipGraph(
   userId?: string,
@@ -294,15 +324,15 @@ export async function buildRelationshipGraph(
     maxDepth?: number;
     minConfidence?: number;
   }
-): Promise<RelationshipGraph> {
+): Promise<FrontendRelationshipGraph> {
   const relationships = await getAllRelationships(userId);
   const minConfidence = options?.minConfidence || 0.5;
 
   // Filter by confidence
   const filteredRels = relationships.filter((r) => r.confidence >= minConfidence);
 
-  // Build nodes map
-  const nodesMap = new Map<string, GraphNode>();
+  // Build nodes map with connection counts
+  const nodesMap = new Map<string, FrontendGraphNode>();
   const edgeCounts = new Map<string, number>();
 
   for (const rel of filteredRels) {
@@ -311,10 +341,10 @@ export async function buildRelationshipGraph(
     if (!nodesMap.has(fromId)) {
       nodesMap.set(fromId, {
         id: fromId,
-        label: rel.fromEntityValue,
         type: rel.fromEntityType,
-        color: TYPE_COLORS[rel.fromEntityType] || '#9ca3af',
-        size: 1,
+        value: rel.fromEntityValue,
+        normalized: rel.fromEntityValue.toLowerCase(),
+        connectionCount: 0,
       });
     }
     edgeCounts.set(fromId, (edgeCounts.get(fromId) || 0) + 1);
@@ -324,25 +354,25 @@ export async function buildRelationshipGraph(
     if (!nodesMap.has(toId)) {
       nodesMap.set(toId, {
         id: toId,
-        label: rel.toEntityValue,
         type: rel.toEntityType,
-        color: TYPE_COLORS[rel.toEntityType] || '#9ca3af',
-        size: 1,
+        value: rel.toEntityValue,
+        normalized: rel.toEntityValue.toLowerCase(),
+        connectionCount: 0,
       });
     }
     edgeCounts.set(toId, (edgeCounts.get(toId) || 0) + 1);
   }
 
-  // Update node sizes based on connections
+  // Update node connection counts
   for (const [id, count] of Array.from(edgeCounts.entries())) {
     const node = nodesMap.get(id);
     if (node) {
-      node.size = Math.min(5, 1 + Math.log2(count + 1));
+      node.connectionCount = count;
     }
   }
 
-  // Build edges (aggregate duplicates)
-  const edgesMap = new Map<string, GraphEdge>();
+  // Build edges (keep best confidence for duplicates, store evidence)
+  const edgesMap = new Map<string, FrontendGraphEdge>();
 
   for (const rel of filteredRels) {
     const fromId = `${rel.fromEntityType}:${rel.fromEntityValue}`;
@@ -351,14 +381,19 @@ export async function buildRelationshipGraph(
 
     const existing = edgesMap.get(edgeKey);
     if (existing) {
-      existing.weight += rel.confidence;
+      // Keep the higher confidence version
+      if (rel.confidence > existing.confidence) {
+        existing.confidence = rel.confidence;
+        existing.evidence = rel.evidence;
+      }
     } else {
       edgesMap.set(edgeKey, {
+        id: edgeKey,
         source: fromId,
         target: toId,
         type: rel.relationshipType,
-        weight: rel.confidence,
-        label: rel.relationshipType.replace(/_/g, ' ').toLowerCase(),
+        confidence: rel.confidence,
+        evidence: rel.evidence,
       });
     }
   }
@@ -366,17 +401,12 @@ export async function buildRelationshipGraph(
   const nodes = Array.from(nodesMap.values());
   const edges = Array.from(edgesMap.values());
 
-  // Calculate average connections
-  const totalConnections = edges.length * 2;
-  const avgConnections = nodes.length > 0 ? totalConnections / nodes.length : 0;
-
   return {
     nodes,
     edges,
     stats: {
-      totalNodes: nodes.length,
-      totalEdges: edges.length,
-      avgConnections: Math.round(avgConnections * 100) / 100,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
     },
   };
 }
