@@ -83,7 +83,21 @@ export class NotifierHandler implements EventHandler {
     const startTime = Date.now();
 
     try {
-      await this.agent.notify();
+      // Extract userId from event metadata (default to 'default' if not provided)
+      const userId = (event as unknown as { userId?: string }).userId || 'default';
+
+      // Send notification based on event
+      const result = await this.agent.notify({
+        userId,
+        type: 'alert',
+        title: `Event from ${event.source}`,
+        message: `Category: ${event.classification.category}`,
+        metadata: {
+          webhookId: event.webhookId,
+          source: event.source,
+          category: event.classification.category,
+        },
+      });
 
       const latencyMs = Date.now() - startTime;
 
@@ -92,21 +106,40 @@ export class NotifierHandler implements EventHandler {
         timestamp: new Date(),
         type: 'dispatch',
         latencyMs,
-        success: true,
+        success: result.success,
         metadata: {
           handler: this.name,
           webhookId: event.webhookId,
           source: event.source,
           category: event.classification.category,
+          skipped: result.skipped,
+          channel: result.channel,
         },
       });
 
+      if (result.skipped) {
+        return {
+          success: true,
+          message: `Notification skipped for ${event.source}: ${result.reason}`,
+          metadata: {
+            category: event.classification.category,
+            webhookId: event.webhookId,
+            skipped: true,
+            reason: result.reason,
+          },
+        };
+      }
+
       return {
-        success: true,
-        message: `Notification sent for ${event.source}`,
+        success: result.success,
+        message: result.success
+          ? `Notification sent for ${event.source}`
+          : `Notification failed: ${result.error}`,
         metadata: {
           category: event.classification.category,
           webhookId: event.webhookId,
+          channel: result.channel,
+          messageId: result.messageId?.toString(),
         },
       };
     } catch (error) {

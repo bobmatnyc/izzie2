@@ -6,10 +6,12 @@
 import { inngest } from '../index';
 import { ResearchAgent } from '@/agents/research/research-agent';
 import { TaskManager } from '@/agents/base/task-manager';
+import { NotifierAgent } from '@/agents/notifier';
 import type { AgentContext, AgentStatus, AgentTask } from '@/agents/base/types';
-import type { ResearchInput } from '@/agents/research/types';
+import type { ResearchInput, ResearchOutput } from '@/agents/research/types';
 
 const taskManager = new TaskManager();
+const notifierAgent = new NotifierAgent();
 
 /**
  * Research task event payload schema
@@ -175,7 +177,66 @@ export const researchTask = inngest.createFunction(
         }
       });
 
-      // Step 5: Emit completion event
+      // Step 5: Send Telegram notification
+      await step.run('send-notification', async () => {
+        if (result.success && result.data) {
+          const notifyResult = await notifierAgent.notifyResearchComplete({
+            userId,
+            taskId,
+            topic: query,
+            result: result.data as ResearchOutput,
+          });
+
+          if (notifyResult.success) {
+            logger.info('Research complete notification sent', {
+              taskId,
+              userId,
+              channel: notifyResult.channel,
+            });
+          } else if (notifyResult.skipped) {
+            logger.info('Research notification skipped', {
+              taskId,
+              userId,
+              reason: notifyResult.reason,
+            });
+          } else {
+            logger.warn('Failed to send research complete notification', {
+              taskId,
+              userId,
+              error: notifyResult.error,
+            });
+          }
+        } else {
+          const notifyResult = await notifierAgent.notifyResearchFailed({
+            userId,
+            taskId,
+            topic: query,
+            error: result.error || 'Unknown error',
+          });
+
+          if (notifyResult.success) {
+            logger.info('Research failed notification sent', {
+              taskId,
+              userId,
+              channel: notifyResult.channel,
+            });
+          } else if (notifyResult.skipped) {
+            logger.info('Research failed notification skipped', {
+              taskId,
+              userId,
+              reason: notifyResult.reason,
+            });
+          } else {
+            logger.warn('Failed to send research failed notification', {
+              taskId,
+              userId,
+              error: notifyResult.error,
+            });
+          }
+        }
+      });
+
+      // Step 6: Emit completion event
       await step.sendEvent('research-complete', {
         name: 'izzie/research.completed',
         data: {
@@ -197,13 +258,45 @@ export const researchTask = inngest.createFunction(
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
       // Update task status
       await step.run('mark-failed', async () => {
         await taskManager.updateTask(taskId, {
           status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: errorMessage,
           completedAt: new Date(),
         });
+      });
+
+      // Send failure notification via Telegram
+      await step.run('send-failure-notification', async () => {
+        const notifyResult = await notifierAgent.notifyResearchFailed({
+          userId,
+          taskId,
+          topic: query,
+          error: errorMessage,
+        });
+
+        if (notifyResult.success) {
+          logger.info('Research failed notification sent', {
+            taskId,
+            userId,
+            channel: notifyResult.channel,
+          });
+        } else if (notifyResult.skipped) {
+          logger.info('Research failed notification skipped', {
+            taskId,
+            userId,
+            reason: notifyResult.reason,
+          });
+        } else {
+          logger.warn('Failed to send research failed notification', {
+            taskId,
+            userId,
+            error: notifyResult.error,
+          });
+        }
       });
 
       // Emit failure event
@@ -212,7 +305,7 @@ export const researchTask = inngest.createFunction(
         data: {
           taskId,
           userId,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: errorMessage,
         },
       });
 

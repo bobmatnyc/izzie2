@@ -6,6 +6,25 @@
 import type { SearchResult } from '@/lib/search';
 
 /**
+ * Research source types for multi-source search
+ */
+export type ResearchSource = 'email' | 'drive' | 'web';
+
+/**
+ * Result from any research source (unified format)
+ */
+export interface ResearchSourceResult {
+  sourceType: ResearchSource;
+  title: string;
+  snippet: string;
+  link: string; // URL for web, message ID for email, file ID for drive
+  reference: string; // Human-readable reference (e.g., "Email from John on Jan 15")
+  date?: Date;
+  relevance?: number; // 0-1 relevance score
+  metadata?: Record<string, unknown>;
+}
+
+/**
  * Research task input configuration
  */
 export interface ResearchInput {
@@ -15,6 +34,7 @@ export interface ResearchInput {
   maxDepth?: number; // search depth, default 1
   focusAreas?: string[]; // specific areas to focus on
   excludeDomains?: string[]; // domains to skip
+  sources?: ResearchSource[]; // Sources to search (default: ['web'])
 }
 
 /**

@@ -1,6 +1,6 @@
 /**
  * Research Chat Tool
- * Enables users to conduct deep web research via chat
+ * Enables users to conduct research across web, email, and Google Drive sources
  */
 
 import { z } from 'zod';
@@ -12,6 +12,17 @@ import {
   formatResearchError,
 } from '../formatters/research';
 import type { ResearchOutput } from '@/agents/research/types';
+
+/**
+ * Valid research sources
+ */
+export const ResearchSource = {
+  WEB: 'web',
+  EMAIL: 'email',
+  DRIVE: 'drive',
+} as const;
+
+export type ResearchSourceType = (typeof ResearchSource)[keyof typeof ResearchSource];
 
 /**
  * Research tool parameter schema
@@ -30,6 +41,11 @@ export const researchToolSchema = z.object({
     .optional()
     .default(5)
     .describe('Maximum number of sources to analyze (1-10)'),
+  sources: z
+    .array(z.enum(['web', 'email', 'drive']))
+    .optional()
+    .default(['web', 'email', 'drive'])
+    .describe('Sources to search: web (internet), email (Gmail), drive (Google Drive). Defaults to all sources.'),
 });
 
 export type ResearchToolParams = z.infer<typeof researchToolSchema>;
@@ -40,7 +56,7 @@ export type ResearchToolParams = z.infer<typeof researchToolSchema>;
 export const researchTool = {
   name: 'research',
   description:
-    'Conduct comprehensive web research on a topic. Use this when the user asks for in-depth research, analysis of multiple sources, or needs up-to-date information on a complex topic. This tool searches the web, analyzes multiple sources, extracts key findings, and provides a well-structured summary with citations.',
+    'Conduct comprehensive research across web, email, and Google Drive sources. Use this when the user asks for in-depth research, analysis of multiple sources, or needs information on a complex topic. By default searches all sources (web, email, drive), but can be limited to specific sources (e.g., "research my emails about project X" would use sources: ["email"]). Analyzes multiple sources, extracts key findings, and provides a well-structured summary with citations.',
   parameters: researchToolSchema,
 
   /**
@@ -74,6 +90,7 @@ export const researchTool = {
           context: validated.context,
           maxSources: validated.maxSources,
           maxDepth: 1,
+          sources: validated.sources,
         },
       });
 
