@@ -252,14 +252,14 @@ async function sendTelegramNotification(
 
       logger.info('Telegram admin notification sent', {
         chatId: adminChatId,
-        messageId: result.message_id,
+        messageId: String(result.message_id),
       });
 
       return {
         success: true,
         channel: 'telegram',
         sentAt: new Date().toISOString(),
-        messageId: result.message_id,
+        messageId: Number(result.message_id),
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -300,7 +300,7 @@ async function sendTelegramNotification(
     logger.info('Telegram notification sent', {
       userId: recipient,
       chatId,
-      messageId: result.message_id,
+      messageId: String(result.message_id),
       digestType: metadata?.digestType,
     });
 
@@ -308,7 +308,7 @@ async function sendTelegramNotification(
       success: true,
       channel: 'telegram',
       sentAt: new Date().toISOString(),
-      messageId: result.message_id,
+      messageId: Number(result.message_id),
     };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
