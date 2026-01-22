@@ -62,12 +62,18 @@ importers:
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@cloudflare/workers-types@4.20260122.0)(@neondatabase/serverless@1.0.2)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.28.10)(pg@8.11.3)(sqlite3@5.1.7)
+      google-auth-library:
+        specifier: ^10.5.0
+        version: 10.5.0
       googleapis:
         specifier: ^169.0.0
         version: 169.0.0
       inngest:
         specifier: ^3.48.1
         version: 3.49.3(@opentelemetry/core@2.5.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)(express@5.2.1)(hono@4.11.5)(next@16.1.4(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)(zod@4.3.5)
+      json-bigint:
+        specifier: ^1.0.0
+        version: 1.0.0
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.2.3)
@@ -110,6 +116,9 @@ importers:
       zod:
         specifier: ^4.3.5
         version: 4.3.5
+      zod-to-json-schema:
+        specifier: ^3.25.1
+        version: 3.25.1(zod@4.3.5)
     devDependencies:
       '@playwright/test':
         specifier: ^1.57.0

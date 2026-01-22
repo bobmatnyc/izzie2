@@ -78,8 +78,10 @@
     "clsx": "^2.1.1",
     "d3-force": "^3.0.0",
     "drizzle-orm": "^0.45.1",
+    "google-auth-library": "^10.5.0",
     "googleapis": "^169.0.0",
     "inngest": "^3.48.1",
+    "json-bigint": "^1.0.0",
     "lucide-react": "^0.562.0",
     "mem0ai": "^2.2.0",
     "neo4j-driver": "^6.0.1",
@@ -93,7 +95,8 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3",
     "weaviate-client": "^3.10.0",
-    "zod": "^4.3.5"
+    "zod": "^4.3.5",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
