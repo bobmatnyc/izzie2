@@ -99,8 +99,10 @@ function formatCalendarEvents(events: CalendarEvent[]): string {
   const items = events.map((event) => {
     // Parse start time
     const startDate = new Date(event.start.dateTime || event.start.date || '');
-    // Use the event's timezone for formatting, default to America/New_York
-    const timezone = event.start.timeZone || 'America/New_York';
+    // Always use America/New_York for the user since that's their actual timezone.
+    // The event.start.timeZone from Google can be wrong (e.g., Puerto_Rico for an Eastern event)
+    // when the dateTime string has an embedded offset that differs from the named timezone.
+    const timezone = 'America/New_York';
 
     const dateStr = startDate.toLocaleDateString('en-US', {
       timeZone: timezone,

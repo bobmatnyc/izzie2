@@ -38,10 +38,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         timeZone: e.end?.timeZone,
       },
       // Formatted for comparison
+      // Always use America/New_York for the user since that's their actual timezone.
+      // The event.start.timeZone from Google can be wrong (e.g., Puerto_Rico for an Eastern event)
+      // when the dateTime string has an embedded offset that differs from the named timezone.
       formatted: {
         startDate: e.start.dateTime
           ? new Date(e.start.dateTime).toLocaleString('en-US', {
-              timeZone: e.start.timeZone || 'America/New_York',
+              timeZone: 'America/New_York',
               weekday: 'short',
               month: 'short',
               day: 'numeric',
