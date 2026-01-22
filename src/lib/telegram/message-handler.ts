@@ -18,6 +18,7 @@ import { formatContextForPrompt } from '@/lib/chat/context-formatter';
 import { getAIClient } from '@/lib/ai/client';
 import { MODELS } from '@/lib/ai/models';
 import { getTelegramBot } from './bot';
+import { logAudit } from './audit';
 
 const LOG_PREFIX = '[TelegramHandler]';
 
@@ -118,6 +119,14 @@ export async function processAndReply(
     console.log(
       `${LOG_PREFIX} Retrieved context: ${context.entities.length} entities, ${context.memories.length} memories`
     );
+
+    // Audit log for data access
+    await logAudit({
+      userId,
+      chatId: telegramChatId.toString(),
+      action: 'data_access',
+      details: `entities: ${context.entities.length}, memories: ${context.memories.length}`,
+    });
 
     // 4. Build system prompt
     const userName = await getUserName(userId);

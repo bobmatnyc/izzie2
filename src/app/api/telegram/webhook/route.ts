@@ -14,6 +14,9 @@ import type { TelegramUpdate } from '@/lib/telegram/types';
 import { getTelegramBot } from '@/lib/telegram/bot';
 import { verifyLinkCode, getUserByTelegramChatId } from '@/lib/telegram/linking';
 import { processAndReply } from '@/lib/telegram/message-handler';
+import { logAudit } from '@/lib/telegram/audit';
+import { checkRateLimit } from '@/lib/telegram/rate-limit';
+import { notifyAdmin } from '@/lib/telegram/admin-notify';
 
 // Configure json-bigint to parse integers as native BigInt
 const JSONbigParser = JSONbig({ useNativeBigInt: true });
@@ -133,9 +136,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const chatId = message.chat.id;
     const text = message.text.trim();
     const username = message.from?.username;
+    const telegramUserId = message.from?.id?.toString() || chatId.toString();
 
     // Debug: trace incoming chatId
     console.log(`${LOG_PREFIX} [TRACE] Incoming chatId: ${chatId} (type: ${typeof chatId}, raw: ${String(chatId)})`);
+
+    // Rate limit check
+    const rateCheck = checkRateLimit(telegramUserId);
+    if (!rateCheck.allowed) {
+      console.log(`${LOG_PREFIX} Rate limited user ${telegramUserId}`);
+      await notifyAdmin('rate_limit', { userId: telegramUserId, chatId: chatId.toString() });
+      return NextResponse.json({ ok: true });
+    }
 
     const bot = getTelegramBot();
 
@@ -162,6 +174,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const userName = user?.name || 'there';
         await safeBotSend(bot, chatId.toString(), MESSAGES.LINK_SUCCESS(userName), 'link_success');
         console.log(`${LOG_PREFIX} Successfully linked chat ${chatId} to user ${result.userId}`);
+
+        // Audit log and admin notification for successful link
+        await logAudit({
+          userId: result.userId!,
+          chatId: chatId.toString(),
+          action: 'link',
+          details: `username: ${username || 'none'}`,
+        });
+        await notifyAdmin('new_link', { username, chatId: chatId.toString() });
       } else {
         // Log detailed reason for link failure
         console.error(
@@ -195,6 +216,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Process message through chat system
     await processAndReply(userId, chatId, text, messageThreadId);
+
+    // Audit log for message processing
+    await logAudit({
+      userId,
+      chatId: chatId.toString(),
+      action: 'message',
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
