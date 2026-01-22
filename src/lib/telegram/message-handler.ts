@@ -88,7 +88,8 @@ async function getUserName(userId: string): Promise<string> {
 export async function processAndReply(
   userId: string,
   telegramChatId: bigint,
-  message: string
+  message: string,
+  messageThreadId?: number
 ): Promise<void> {
   const bot = getTelegramBot();
 
@@ -214,7 +215,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
 
     // 9. Send reply via Telegram
     console.log(`${LOG_PREFIX} [TRACE] Sending to chatId: ${telegramChatId} (type: ${typeof telegramChatId}, toString: ${telegramChatId.toString()})`);
-    await bot.send(telegramChatId.toString(), structuredResponse.response);
+    await bot.send(telegramChatId.toString(), structuredResponse.response, undefined, messageThreadId);
 
     console.log(`${LOG_PREFIX} Reply sent successfully`);
   } catch (error) {
@@ -224,7 +225,9 @@ ${RESPONSE_FORMAT_INSTRUCTION}
     try {
       await bot.send(
         telegramChatId.toString(),
-        "I'm sorry, I encountered an error processing your message. Please try again in a moment."
+        "I'm sorry, I encountered an error processing your message. Please try again in a moment.",
+        undefined,
+        messageThreadId
       );
     } catch (sendError) {
       console.error(`${LOG_PREFIX} Failed to send error message:`, sendError);

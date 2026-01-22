@@ -129,6 +129,7 @@ export interface TelegramApiResponse<T> {
  */
 export interface SendMessageParams {
   chat_id: number | string;
+  message_thread_id?: number;
   text: string;
   parse_mode?: 'HTML' | 'Markdown' | 'MarkdownV2';
   entities?: TelegramMessageEntity[];

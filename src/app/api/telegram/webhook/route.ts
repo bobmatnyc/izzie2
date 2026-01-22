@@ -190,8 +190,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ ok: true });
     }
 
+    // Extract message_thread_id for forum group support
+    const messageThreadId = message.message_thread_id;
+
     // Process message through chat system
-    await processAndReply(userId, chatId, text);
+    await processAndReply(userId, chatId, text, messageThreadId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

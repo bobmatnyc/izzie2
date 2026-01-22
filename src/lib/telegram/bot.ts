@@ -70,12 +70,14 @@ export class TelegramBot {
   async send(
     chatId: number | string,
     text: string,
-    parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2'
+    parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2',
+    messageThreadId?: number
   ): Promise<TelegramMessage> {
     return this.sendMessage({
       chat_id: chatId,
       text,
       parse_mode: parseMode,
+      message_thread_id: messageThreadId,
     });
   }
 
