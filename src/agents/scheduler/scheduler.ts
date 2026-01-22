@@ -9,6 +9,7 @@ import {
   deleteEvent,
   getEvent,
   listEvents,
+  respondToEvent,
   type CreateEventParams,
   type UpdateEventParams,
   type CalendarEvent,
@@ -26,6 +27,7 @@ import type {
   RescheduleRequest,
   CancelRequest,
   FindTimeRequest,
+  RSVPRequest,
   SchedulingResponse,
   TimeSlot,
   Participant,
@@ -60,6 +62,10 @@ export class SchedulerAgent {
           return await this.handleCancel(request);
         case SchedulingAction.FIND_TIME:
           return await this.handleFindTime(request);
+        case SchedulingAction.ACCEPT_INVITE:
+        case SchedulingAction.DECLINE_INVITE:
+        case SchedulingAction.TENTATIVE_INVITE:
+          return await this.handleRSVP(request as RSVPRequest);
         default:
           throw new Error(`Unknown action: ${(request as any).action}`);
       }
@@ -423,6 +429,50 @@ export class SchedulerAgent {
         suggestions.length > 0
           ? `Found ${suggestions.length} available time slot${suggestions.length !== 1 ? 's' : ''}`
           : 'No available time slots found',
+    };
+  }
+
+  /**
+   * Handle RSVP action (accept/decline/tentative)
+   */
+  private async handleRSVP(request: RSVPRequest): Promise<SchedulingResponse> {
+    const { userId, action, eventId, calendarId = 'primary' } = request;
+
+    const responseMap: Record<string, 'accepted' | 'declined' | 'tentative'> = {
+      [SchedulingAction.ACCEPT_INVITE]: 'accepted',
+      [SchedulingAction.DECLINE_INVITE]: 'declined',
+      [SchedulingAction.TENTATIVE_INVITE]: 'tentative',
+    };
+
+    const response = responseMap[action];
+    const result = await respondToEvent(userId, eventId, response, calendarId);
+
+    if (!result) {
+      return {
+        success: false,
+        action,
+        message: `Failed to ${action.replace('_invite', '')} the meeting invitation.`,
+      };
+    }
+
+    const messages: Record<string, string> = {
+      [SchedulingAction.ACCEPT_INVITE]: `I've accepted the meeting "${result.summary || 'Untitled'}" for you.`,
+      [SchedulingAction.DECLINE_INVITE]: `I've declined the meeting "${result.summary || 'Untitled'}" for you.`,
+      [SchedulingAction.TENTATIVE_INVITE]: `I've marked you as tentative for "${result.summary || 'Untitled'}".`,
+    };
+
+    return {
+      success: true,
+      action,
+      message: messages[action],
+      event: {
+        id: result.id,
+        title: result.summary || '',
+        start: result.start.dateTime || result.start.date || '',
+        end: result.end.dateTime || result.end.date || '',
+        htmlLink: result.htmlLink,
+        attendees: result.attendees,
+      },
     };
   }
 

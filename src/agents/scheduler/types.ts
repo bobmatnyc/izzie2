@@ -14,6 +14,9 @@ export const SchedulingAction = {
   RESCHEDULE: 'reschedule',
   CANCEL: 'cancel',
   FIND_TIME: 'find_time',
+  ACCEPT_INVITE: 'accept_invite',
+  DECLINE_INVITE: 'decline_invite',
+  TENTATIVE_INVITE: 'tentative_invite',
 } as const;
 
 export type SchedulingAction = (typeof SchedulingAction)[keyof typeof SchedulingAction];
@@ -119,6 +122,22 @@ export const FindTimeRequestSchema = z.object({
 export type FindTimeRequest = z.infer<typeof FindTimeRequestSchema>;
 
 /**
+ * RSVP request schema
+ */
+export const RSVPRequestSchema = z.object({
+  action: z.enum([
+    SchedulingAction.ACCEPT_INVITE,
+    SchedulingAction.DECLINE_INVITE,
+    SchedulingAction.TENTATIVE_INVITE,
+  ]),
+  userId: z.string(),
+  eventId: z.string(),
+  calendarId: z.string().optional(),
+});
+
+export type RSVPRequest = z.infer<typeof RSVPRequestSchema>;
+
+/**
  * Union type for all scheduler requests
  */
 export const SchedulerRequestSchema = z.discriminatedUnion('action', [
@@ -132,7 +151,8 @@ export type SchedulerRequest =
   | ScheduleRequest
   | RescheduleRequest
   | CancelRequest
-  | FindTimeRequest;
+  | FindTimeRequest
+  | RSVPRequest;
 
 /**
  * Time slot suggestion
@@ -171,6 +191,9 @@ export const SchedulingResponseSchema = z.object({
     SchedulingAction.RESCHEDULE,
     SchedulingAction.CANCEL,
     SchedulingAction.FIND_TIME,
+    SchedulingAction.ACCEPT_INVITE,
+    SchedulingAction.DECLINE_INVITE,
+    SchedulingAction.TENTATIVE_INVITE,
   ]),
   event: z
     .object({

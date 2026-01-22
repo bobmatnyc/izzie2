@@ -437,3 +437,60 @@ export {
   type AvailableSlot,
   type AvailabilityResponse,
 } from './availability';
+
+/**
+ * Respond to a calendar event invitation (accept/decline/tentative)
+ */
+export async function respondToEvent(
+  userId: string,
+  eventId: string,
+  response: 'accepted' | 'declined' | 'tentative',
+  calendarId: string = 'primary'
+): Promise<CalendarEvent | null> {
+  const LOG_PREFIX = '[Calendar]';
+
+  try {
+    const { calendar } = await getCalendarClient(userId);
+
+    // Get the event first to find user's attendee record
+    const event = await calendar.events.get({
+      calendarId,
+      eventId,
+    });
+
+    if (!event.data) {
+      console.error(`${LOG_PREFIX} Event ${eventId} not found`);
+      return null;
+    }
+
+    // Find current user's attendee record
+    const attendees = event.data.attendees || [];
+    const userAttendee = attendees.find((a) => a.self === true);
+
+    if (!userAttendee) {
+      console.log(`${LOG_PREFIX} User is not an attendee of event ${eventId}`);
+      // User might be the organizer - still update their response
+    }
+
+    // Update the response status
+    const updatedAttendees = attendees.map((a) =>
+      a.self ? { ...a, responseStatus: response } : a
+    );
+
+    // Patch the event
+    const updated = await calendar.events.patch({
+      calendarId,
+      eventId,
+      requestBody: {
+        attendees: updatedAttendees,
+      },
+    });
+
+    console.log(`${LOG_PREFIX} Updated RSVP for event ${eventId} to ${response}`);
+
+    return mapEvent(updated.data, calendarId);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Failed to respond to event:`, error);
+    return null;
+  }
+}
