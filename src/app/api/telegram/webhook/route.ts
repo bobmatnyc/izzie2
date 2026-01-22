@@ -134,6 +134,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const text = message.text.trim();
     const username = message.from?.username;
 
+    // Debug: trace incoming chatId
+    console.log(`${LOG_PREFIX} [TRACE] Incoming chatId: ${chatId} (type: ${typeof chatId}, raw: ${String(chatId)})`);
+
     const bot = getTelegramBot();
 
     // Handle /start <code> command - verify link code

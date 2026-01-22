@@ -213,6 +213,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
     });
 
     // 9. Send reply via Telegram
+    console.log(`${LOG_PREFIX} [TRACE] Sending to chatId: ${telegramChatId} (type: ${typeof telegramChatId}, toString: ${telegramChatId.toString()})`);
     await bot.send(telegramChatId.toString(), structuredResponse.response);
 
     console.log(`${LOG_PREFIX} Reply sent successfully`);

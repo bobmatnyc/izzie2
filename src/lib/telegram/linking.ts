@@ -80,6 +80,9 @@ export async function verifyLinkCode(
     )
     .limit(1);
 
+  // Debug: trace chatId in verifyLinkCode
+  console.log(`${LOG_PREFIX} [TRACE] verifyLinkCode called with chatId: ${telegramChatId} (type: ${typeof telegramChatId})`);
+
   if (!linkCode) {
     console.log(`${LOG_PREFIX} Invalid or expired code: ${code}`);
     return { success: false, error: 'Invalid or expired code' };
@@ -118,6 +121,9 @@ export async function verifyLinkCode(
  * @returns User ID if linked, null otherwise
  */
 export async function getUserByTelegramChatId(chatId: bigint): Promise<string | null> {
+  // Debug: trace chatId in getUserByTelegramChatId
+  console.log(`${LOG_PREFIX} [TRACE] getUserByTelegramChatId called with chatId: ${chatId} (type: ${typeof chatId})`);
+
   const db = dbClient.getDb();
 
   const [link] = await db
@@ -125,6 +131,8 @@ export async function getUserByTelegramChatId(chatId: bigint): Promise<string | 
     .from(telegramLinks)
     .where(eq(telegramLinks.telegramChatId, chatId))
     .limit(1);
+
+  console.log(`${LOG_PREFIX} [TRACE] getUserByTelegramChatId result: ${link ? `found userId ${link.userId}` : 'not found'}`);
 
   return link?.userId ?? null;
 }
