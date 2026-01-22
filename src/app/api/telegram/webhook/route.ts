@@ -40,11 +40,26 @@ function verifyWebhookSecret(request: NextRequest): boolean {
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
 
   if (!expectedSecret) {
-    console.warn(`${LOG_PREFIX} TELEGRAM_WEBHOOK_SECRET not configured`);
+    console.error(`${LOG_PREFIX} TELEGRAM_WEBHOOK_SECRET not configured - webhook verification disabled`);
     return false;
   }
 
-  return secret === expectedSecret;
+  if (!secret) {
+    console.error(`${LOG_PREFIX} Webhook secret missing from request headers`);
+    return false;
+  }
+
+  if (secret !== expectedSecret) {
+    // Log first 8 chars for debugging (safe to log partial tokens)
+    const receivedPrefix = secret.substring(0, 8);
+    const expectedPrefix = expectedSecret.substring(0, 8);
+    console.error(
+      `${LOG_PREFIX} Webhook secret mismatch - received prefix: "${receivedPrefix}...", expected prefix: "${expectedPrefix}..."`
+    );
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -64,15 +79,35 @@ function isPlainStart(text: string): boolean {
 }
 
 /**
+ * Safely send a message via bot, catching and logging any errors
+ */
+async function safeBotSend(
+  bot: ReturnType<typeof getTelegramBot>,
+  chatId: string,
+  message: string,
+  context: string
+): Promise<boolean> {
+  try {
+    await bot.send(chatId, message);
+    return true;
+  } catch (error) {
+    console.error(
+      `${LOG_PREFIX} Failed to send message [${context}] to chat ${chatId}:`,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
+    );
+    return false;
+  }
+}
+
+/**
  * POST handler for Telegram webhook updates
  *
  * Always returns 200 to acknowledge receipt (Telegram retries on non-200)
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify webhook secret
+    // Verify webhook secret (detailed logging happens inside verifyWebhookSecret)
     if (!verifyWebhookSecret(request)) {
-      console.warn(`${LOG_PREFIX} Invalid or missing webhook secret`);
       // Return 200 anyway to prevent Telegram retries
       return NextResponse.json({ ok: true });
     }
@@ -97,7 +132,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Handle /start <code> command - verify link code
     const code = extractStartCode(text);
     if (code) {
-      console.log(`${LOG_PREFIX} Processing link code from chat ${chatId}`);
+      console.log(`${LOG_PREFIX} Processing link code "${code}" from chat ${chatId}`);
 
       const result = await verifyLinkCode(code, chatId, username);
 
@@ -115,11 +150,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .limit(1);
 
         const userName = user?.name || 'there';
-        await bot.send(chatId.toString(), MESSAGES.LINK_SUCCESS(userName));
+        await safeBotSend(bot, chatId.toString(), MESSAGES.LINK_SUCCESS(userName), 'link_success');
         console.log(`${LOG_PREFIX} Successfully linked chat ${chatId} to user ${result.userId}`);
       } else {
-        await bot.send(chatId.toString(), MESSAGES.LINK_FAILED);
-        console.log(`${LOG_PREFIX} Link code verification failed: ${result.error}`);
+        // Log detailed reason for link failure
+        console.error(
+          `${LOG_PREFIX} Link code verification failed for code "${code}" from chat ${chatId}:`,
+          { error: result.error, code, chatId: chatId.toString(), username }
+        );
+        await safeBotSend(bot, chatId.toString(), MESSAGES.LINK_FAILED, 'link_failed');
       }
 
       return NextResponse.json({ ok: true });
@@ -127,7 +166,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Handle plain /start command - send welcome message
     if (isPlainStart(text)) {
-      await bot.send(chatId.toString(), MESSAGES.WELCOME);
+      await safeBotSend(bot, chatId.toString(), MESSAGES.WELCOME, 'welcome');
       console.log(`${LOG_PREFIX} Sent welcome message to chat ${chatId}`);
       return NextResponse.json({ ok: true });
     }
@@ -136,7 +175,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const userId = await getUserByTelegramChatId(chatId);
 
     if (!userId) {
-      await bot.send(chatId.toString(), MESSAGES.NOT_LINKED);
+      await safeBotSend(bot, chatId.toString(), MESSAGES.NOT_LINKED, 'not_linked');
       console.log(`${LOG_PREFIX} Unlinked user attempted to chat from ${chatId}`);
       return NextResponse.json({ ok: true });
     }
@@ -146,8 +185,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    // Log error but always return 200 to prevent Telegram retries
-    console.error(`${LOG_PREFIX} Error processing webhook:`, error);
+    // Log full error details but always return 200 to prevent Telegram retries
+    console.error(`${LOG_PREFIX} Unhandled exception in webhook handler:`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return NextResponse.json({ ok: true });
   }
 }
