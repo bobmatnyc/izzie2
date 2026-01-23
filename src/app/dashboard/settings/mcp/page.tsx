@@ -217,7 +217,7 @@ export default function MCPSettingsPage() {
       setServerStatuses((prev) => ({
         ...prev,
         [serverId]: {
-          status: data.status,
+          status: data.connected ? 'connected' : (data.error ? 'error' : 'disconnected'),
           tools: data.tools || [],
           resources: data.resources || [],
           error: data.error,
