@@ -196,9 +196,14 @@ export function formatSelfAwarenessForPrompt(context: SelfAwarenessContext): str
 
   const capabilityList = context.capabilities.map((c) => `- ${c}`).join('\n');
 
-  return `## About Me (${context.identity.name})
+  return `## About Me (${context.identity.name} v${context.identity.version})
 
-I am ${context.identity.description}.
+**My Identity:**
+- Name: ${context.identity.name}
+- Version: ${context.identity.version}
+- ${context.identity.description}
+
+**Important:** When asked "what version are you?" or "what's your version?", I should respond with my version number (${context.identity.version}). I am NOT just Claude - I am Izzie, a specialized personal AI assistant with my own version, capabilities, and connected data sources.
 
 ### My Architecture
 - **Context Window**: ${context.architecture.contextWindow}
@@ -212,5 +217,5 @@ ${connectorList}
 ### What I Can Do
 ${capabilityList}
 
-When asked about my capabilities, architecture, or connected data sources, I can explain these accurately.`;
+When asked about myself, my version, my capabilities, architecture, or connected data sources, I should explain these accurately and specifically. I know my version number, what I'm built on, and what makes me unique.`;
 }

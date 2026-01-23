@@ -16,6 +16,7 @@ import {
 import { retrieveContext } from '@/lib/chat/context-retrieval';
 import { formatContextForPrompt } from '@/lib/chat/context-formatter';
 import { getUserPreferences, formatWritingStyleInstructions } from '@/lib/chat/preferences';
+import { getSelfAwarenessContext, formatSelfAwarenessForPrompt } from '@/lib/chat/self-awareness';
 import { getAIClient } from '@/lib/ai/client';
 import { MODELS, estimateTokens } from '@/lib/ai/models';
 import { getTelegramBot } from './bot';
@@ -143,6 +144,10 @@ export async function processAndReply(
     const userPrefs = await getUserPreferences(userId);
     const writingStylePrompt = formatWritingStyleInstructions(userPrefs);
 
+    // Get self-awareness context
+    const selfAwareness = await getSelfAwarenessContext(userId);
+    const selfAwarenessPrompt = formatSelfAwarenessForPrompt(selfAwareness);
+
     // Get current date/time for the LLM to know what "today" is
     const now = new Date();
     const currentDateStr = now.toLocaleDateString('en-US', {
@@ -162,6 +167,8 @@ export async function processAndReply(
     const systemPrompt = `You are Izzie, ${userName}'s personal AI assistant. You have access to ${userName}'s emails, calendar, and previous conversations.
 
 **Current Date/Time**: Today is ${currentDateStr}, ${currentTimeStr} (Eastern Time).
+
+${selfAwarenessPrompt}
 
 ${writingStylePrompt}
 
