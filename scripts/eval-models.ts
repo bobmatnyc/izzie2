@@ -20,6 +20,10 @@ import { MODELS, MODEL_COSTS, estimateCost, type ModelId } from '../src/lib/ai/m
 import { BUILD_INFO } from '../src/lib/build-info';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Ensure dev-only
 if (process.env.NODE_ENV === 'production') {
