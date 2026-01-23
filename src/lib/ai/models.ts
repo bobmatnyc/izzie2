@@ -1,25 +1,35 @@
 /**
  * AI Model configurations and cost tracking
  * Defines model tiers: CHEAP → STANDARD → PREMIUM
+ *
+ * Model IDs from OpenRouter: https://openrouter.ai/provider/anthropic
  */
 
 export const MODELS = {
   // CHEAP tier - Fast, simple tasks (classification, routing)
-  CLASSIFIER: 'mistralai/mistral-small-3.2-24b-instruct',
-  SCHEDULER: 'mistralai/mistral-small-3.2-24b-instruct',
+  CLASSIFIER: 'anthropic/claude-haiku-4.5',
+  SCHEDULER: 'anthropic/claude-haiku-4.5',
 
-  // STANDARD tier - General purpose tasks
-  GENERAL: 'anthropic/claude-sonnet-4',
+  // STANDARD tier - General purpose tasks (Izzie chat, Telegram)
+  GENERAL: 'anthropic/claude-sonnet-4.5',
 
   // PREMIUM tier - Complex reasoning and orchestration
-  ORCHESTRATOR: 'anthropic/claude-opus-4',
+  ORCHESTRATOR: 'anthropic/claude-opus-4.5',
+
+  // Legacy models (for eval comparison)
+  SONNET_4: 'anthropic/claude-sonnet-4',
+  OPUS_4: 'anthropic/claude-opus-4',
 } as const;
 
 export const MODEL_COSTS = {
-  // Cost per 1K tokens (input/output)
-  'mistralai/mistral-small-3.2-24b-instruct': { input: 0.0001, output: 0.0003 },
+  // Cost per 1K tokens (input/output) - from OpenRouter pricing
+  'anthropic/claude-haiku-4.5': { input: 0.0008, output: 0.004 },
   'anthropic/claude-sonnet-4': { input: 0.003, output: 0.015 },
+  'anthropic/claude-sonnet-4.5': { input: 0.003, output: 0.015 },
   'anthropic/claude-opus-4': { input: 0.015, output: 0.075 },
+  'anthropic/claude-opus-4.5': { input: 0.015, output: 0.075 },
+  // Legacy cheap tier
+  'mistralai/mistral-small-3.2-24b-instruct': { input: 0.0001, output: 0.0003 },
 } as const;
 
 export type ModelId = keyof typeof MODEL_COSTS;
@@ -36,26 +46,49 @@ export interface ModelConfig {
 
 // Use unique keys for model configs to avoid duplicate keys
 export const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
-  'mistralai/mistral-small-3.2-24b-instruct': {
-    id: 'mistralai/mistral-small-3.2-24b-instruct',
+  // 4.5 models (current primary)
+  'anthropic/claude-haiku-4.5': {
+    id: 'anthropic/claude-haiku-4.5',
     tier: 'cheap',
-    maxTokens: 2000,
+    maxTokens: 4000,
     temperature: 0.5,
-    description: 'Fast classification, routing, and scheduling',
+    description: 'Fast classification, routing, scheduling - matches Sonnet 4 performance',
   },
+  'anthropic/claude-sonnet-4.5': {
+    id: 'anthropic/claude-sonnet-4.5',
+    tier: 'standard',
+    maxTokens: 8000,
+    temperature: 0.7,
+    description: 'Enhanced agentic capabilities, tool orchestration, context management',
+  },
+  'anthropic/claude-opus-4.5': {
+    id: 'anthropic/claude-opus-4.5',
+    tier: 'premium',
+    maxTokens: 16000,
+    temperature: 0.7,
+    description: 'Frontier reasoning, complex software engineering, agentic workflows',
+  },
+  // Legacy 4.0 models (for eval comparison)
   'anthropic/claude-sonnet-4': {
     id: 'anthropic/claude-sonnet-4',
     tier: 'standard',
     maxTokens: 4000,
     temperature: 0.7,
-    description: 'General purpose tasks',
+    description: 'Legacy: General purpose tasks',
   },
   'anthropic/claude-opus-4': {
     id: 'anthropic/claude-opus-4',
     tier: 'premium',
     maxTokens: 8000,
     temperature: 0.7,
-    description: 'Complex reasoning and orchestration',
+    description: 'Legacy: Complex reasoning and orchestration',
+  },
+  'mistralai/mistral-small-3.2-24b-instruct': {
+    id: 'mistralai/mistral-small-3.2-24b-instruct',
+    tier: 'cheap',
+    maxTokens: 2000,
+    temperature: 0.5,
+    description: 'Legacy: Fast classification, routing',
   },
 } as const;
 

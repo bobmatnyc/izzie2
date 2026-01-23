@@ -174,14 +174,27 @@ export default function DashboardPage() {
           </p>
         </Link>
 
-        {/* Settings Card (Placeholder) */}
-        <div
+        {/* Settings Card */}
+        <Link
+          href="/dashboard/settings/preferences"
           style={{
             backgroundColor: '#fff',
             border: '1px solid #e5e7eb',
             borderRadius: '12px',
             padding: '2rem',
-            opacity: 0.6,
+            textDecoration: 'none',
+            transition: 'all 0.2s',
+            display: 'block',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#6366f1';
+            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(99, 102, 241, 0.1)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#e5e7eb';
+            e.currentTarget.style.boxShadow = 'none';
+            e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
           <div
@@ -203,9 +216,9 @@ export default function DashboardPage() {
             Settings
           </h2>
           <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-            Coming soon - Configure your preferences and integrations
+            Configure your preferences and integrations
           </p>
-        </div>
+        </Link>
       </div>
 
       {/* Info Section */}

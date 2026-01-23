@@ -38,6 +38,8 @@
     "db:sync": "tsx drizzle/sync-tables.ts",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
+    "eval:models": "NODE_ENV=development tsx scripts/eval-models.ts",
+    "eval:models:verbose": "NODE_ENV=development tsx scripts/eval-models.ts --verbose",
     "benchmark": "tsx src/benchmarks/run-benchmarks.ts",
     "benchmark:vector": "tsx src/benchmarks/run-benchmarks.ts vector",
     "benchmark:graph": "tsx src/benchmarks/run-benchmarks.ts graph",
