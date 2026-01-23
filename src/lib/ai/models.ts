@@ -136,3 +136,149 @@ export function getNextTier(currentModel: ModelId): ModelId | null {
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
+
+/**
+ * Model roles define which models are appropriate for different agent types
+ */
+export const MODEL_ROLES = {
+  // Classifier: Fast categorization, routing decisions (cheap tier)
+  CLASSIFIER: {
+    primary: MODELS.CLASSIFIER,
+    fallback: MODELS.GENERAL,
+    requiresEscalation: false,
+    description: 'Fast text classification and routing',
+  },
+
+  // Scheduler: Task scheduling, cron jobs, time-based decisions (cheap tier)
+  SCHEDULER: {
+    primary: MODELS.SCHEDULER,
+    fallback: MODELS.GENERAL,
+    requiresEscalation: false,
+    description: 'Task scheduling and cron orchestration',
+  },
+
+  // General: Chat, user interactions, standard tasks (standard tier)
+  GENERAL: {
+    primary: MODELS.GENERAL,
+    fallback: MODELS.ORCHESTRATOR,
+    requiresEscalation: true,
+    description: 'General purpose chat and user interactions',
+  },
+
+  // Orchestrator: Complex workflows, multi-step tasks (premium tier)
+  ORCHESTRATOR: {
+    primary: MODELS.ORCHESTRATOR,
+    fallback: null,
+    requiresEscalation: false,
+    description: 'Complex reasoning and workflow orchestration',
+  },
+
+  // Research: Deep analysis, comprehensive investigation (premium tier)
+  RESEARCH: {
+    primary: MODELS.ORCHESTRATOR,
+    fallback: null,
+    requiresEscalation: false,
+    description: 'In-depth research and analysis',
+  },
+
+  // Notifier: Simple message delivery, notifications (cheap tier)
+  NOTIFIER: {
+    primary: MODELS.CLASSIFIER,
+    fallback: MODELS.GENERAL,
+    requiresEscalation: false,
+    description: 'Message formatting and notification delivery',
+  },
+} as const;
+
+export type ModelRole = keyof typeof MODEL_ROLES;
+
+/**
+ * Escalation triggers define when and how to escalate to a higher tier model
+ */
+export const ESCALATION_CONFIG = {
+  // Confidence-based escalation
+  CONFIDENCE_THRESHOLD: 0.6,
+
+  // Token-based escalation
+  TOKEN_LIMITS: {
+    cheap: 4000,
+    standard: 8000,
+    premium: 16000,
+  },
+
+  // Triggers for escalation from one tier to the next
+  TRIGGERS: {
+    // Escalate from cheap to standard
+    COMPLEXITY_TOO_HIGH: {
+      tier: 'cheap' as ModelTier,
+      reason: 'Task complexity exceeds cheap tier capability',
+      indicators: ['requires_reasoning', 'multi_step_task', 'ambiguous_input'],
+    },
+
+    // Escalate from standard to premium
+    REASONING_NEEDED: {
+      tier: 'standard' as ModelTier,
+      reason: 'Complex reasoning required beyond standard capability',
+      indicators: ['ambiguous', 'requires_deep_analysis', 'multi_domain'],
+    },
+
+    // Escalate when confidence is low
+    LOW_CONFIDENCE: {
+      tier: 'cheap' as ModelTier,
+      reason: 'Low confidence in response, needs higher tier review',
+      confidenceThreshold: 0.6,
+    },
+
+    // Escalate when task fails
+    TASK_FAILURE: {
+      tier: 'any' as const,
+      reason: 'Previous attempt failed, escalate to higher tier',
+      maxRetries: 1,
+    },
+
+    // Escalate when response is ambiguous
+    AMBIGUOUS_OUTPUT: {
+      tier: 'cheap' as ModelTier,
+      reason: 'Output is ambiguous or incomplete, needs clarification',
+      indicators: ['unclear', 'multiple_interpretations', 'missing_required_info'],
+    },
+  },
+
+  // Cost limits before escalation
+  MAX_COST_BEFORE_ESCALATE: {
+    cheap: 0.01,       // $0.01 for cheap tier
+    standard: 0.05,    // $0.05 for standard tier
+    premium: 1.0,      // $1.00 for premium tier
+  },
+
+  // Automatic escalation policies
+  AUTO_ESCALATE: {
+    // Escalate after this many failed attempts at current tier
+    MAX_RETRIES_BEFORE_ESCALATE: 2,
+
+    // Escalate if current tier takes longer than threshold
+    TIMEOUT_MS: 30000,
+
+    // Escalate if token usage exceeds percentage of max
+    TOKEN_USAGE_PERCENT: 0.85,
+  },
+
+  // Logging and monitoring
+  LOG_ESCALATIONS: true,
+  TRACK_ESCALATION_METRICS: true,
+} as const;
+
+/**
+ * Get the recommended model for a specific role
+ */
+export function getModelForRole(role: ModelRole): ModelId {
+  return MODEL_ROLES[role].primary;
+}
+
+/**
+ * Check if a role can escalate to a higher tier
+ */
+export function canEscalate(role: ModelRole): boolean {
+  const config = MODEL_ROLES[role];
+  return config.fallback !== null && config.requiresEscalation;
+}
