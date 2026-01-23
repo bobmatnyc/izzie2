@@ -21,6 +21,8 @@ import {
   bigint,
   index,
   customType,
+  date,
+  real,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -1079,6 +1081,42 @@ export const userPreferences = pgTable(
  */
 export type UserPreference = typeof userPreferences.$inferSelect;
 export type NewUserPreference = typeof userPreferences.$inferInsert;
+
+/**
+ * Usage Tracking table
+ * Tracks token usage and costs per user, model, and source
+ */
+export const usageTracking = pgTable(
+  'usage_tracking',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    conversationId: text('conversation_id'),
+    date: date('date').notNull(),
+    model: text('model').notNull(),
+    promptTokens: integer('prompt_tokens').notNull().default(0),
+    completionTokens: integer('completion_tokens').notNull().default(0),
+    totalTokens: integer('total_tokens').notNull().default(0),
+    costUsd: real('cost_usd').notNull().default(0),
+    source: text('source'), // 'chat', 'telegram', 'extraction', 'research'
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('usage_tracking_user_id_idx').on(table.userId),
+    dateIdx: index('usage_tracking_date_idx').on(table.date),
+    modelIdx: index('usage_tracking_model_idx').on(table.model),
+    sourceIdx: index('usage_tracking_source_idx').on(table.source),
+    userDateIdx: index('usage_tracking_user_date_idx').on(table.userId, table.date),
+  })
+);
+
+/**
+ * Type exports for usage tracking
+ */
+export type UsageTrackingRecord = typeof usageTracking.$inferSelect;
+export type NewUsageTrackingRecord = typeof usageTracking.$inferInsert;
 
 /**
  * Enum-like constants for writing style options

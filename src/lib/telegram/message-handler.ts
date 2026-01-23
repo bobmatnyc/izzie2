@@ -17,9 +17,10 @@ import { retrieveContext } from '@/lib/chat/context-retrieval';
 import { formatContextForPrompt } from '@/lib/chat/context-formatter';
 import { getUserPreferences, formatWritingStyleInstructions } from '@/lib/chat/preferences';
 import { getAIClient } from '@/lib/ai/client';
-import { MODELS } from '@/lib/ai/models';
+import { MODELS, estimateTokens } from '@/lib/ai/models';
 import { getTelegramBot } from './bot';
 import { logAudit } from './audit';
+import { trackUsage } from '@/lib/usage';
 
 const LOG_PREFIX = '[TelegramHandler]';
 
@@ -247,7 +248,18 @@ ${RESPONSE_FORMAT_INSTRUCTION}
       model: MODELS.GENERAL,
     });
 
-    // 9. Send reply via Telegram
+    // 9. Track usage
+    const promptTokens = aiResponse.usage?.promptTokens ?? estimateTokens(messages.map((m) => m.content).join(' '));
+    const completionTokens = aiResponse.usage?.completionTokens ?? estimateTokens(aiResponse.content);
+
+    trackUsage(userId, MODELS.GENERAL, promptTokens, completionTokens, {
+      conversationId: chatSession.id,
+      source: 'telegram',
+    }).catch((err) => {
+      console.error(`${LOG_PREFIX} Failed to track usage:`, err);
+    });
+
+    // 10. Send reply via Telegram
     console.log(`${LOG_PREFIX} [TRACE] Sending to chatId: ${telegramChatId} (type: ${typeof telegramChatId}, toString: ${telegramChatId.toString()})`);
     await bot.send(telegramChatId.toString(), structuredResponse.response, undefined, messageThreadId);
 

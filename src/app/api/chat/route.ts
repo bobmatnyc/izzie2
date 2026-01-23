@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { getAIClient } from '@/lib/ai/client';
-import { MODELS } from '@/lib/ai/models';
+import { MODELS, estimateTokens } from '@/lib/ai/models';
 import { retrieveContext } from '@/lib/chat/context-retrieval';
 import { formatContextForPrompt } from '@/lib/chat/context-formatter';
 import { getUserPreferences, formatWritingStyleInstructions } from '@/lib/chat/preferences';
@@ -32,6 +32,7 @@ import { getMCPClientManager } from '@/lib/mcp';
 import type { MCPTool } from '@/lib/mcp/types';
 import type { Tool, ToolCall } from '@/types';
 import { getChatToolDefinitions, executeChatTool } from '@/lib/chat/tools';
+import { trackUsage } from '@/lib/usage';
 
 const LOG_PREFIX = '[Chat API]';
 
@@ -257,6 +258,10 @@ ${RESPONSE_FORMAT_INSTRUCTION}
           const MAX_TOOL_ITERATIONS = 5;
           let toolIterations = 0;
 
+          // Track total usage across all iterations
+          let totalPromptTokens = 0;
+          let totalCompletionTokens = 0;
+
           // Tool execution loop
           while (toolIterations < MAX_TOOL_ITERATIONS) {
             // Use non-streaming API when tools are available to detect tool calls
@@ -268,6 +273,12 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                 tools,
                 tool_choice: 'auto',
               });
+
+              // Accumulate token usage
+              if (response.usage) {
+                totalPromptTokens += response.usage.promptTokens;
+                totalCompletionTokens += response.usage.completionTokens;
+              }
 
               fullContent = response.content;
               const toolCalls = response.tool_calls;
@@ -348,6 +359,10 @@ ${RESPONSE_FORMAT_INSTRUCTION}
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
 
               if (chunk.done) {
+                // Estimate tokens for streaming response (no usage data available)
+                const inputText = conversationMessages.map((m) => m.content).join(' ');
+                totalPromptTokens = estimateTokens(inputText);
+                totalCompletionTokens = estimateTokens(fullContent);
                 break;
               }
             }
@@ -414,6 +429,22 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                   model: MODELS.GENERAL,
                 }
               );
+
+              // Track usage asynchronously (don't block response)
+              if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
+                trackUsage(
+                  userId,
+                  MODELS.GENERAL,
+                  totalPromptTokens,
+                  totalCompletionTokens,
+                  {
+                    conversationId: chatSession.id,
+                    source: 'chat',
+                  }
+                ).catch((err) => {
+                  console.error(`${LOG_PREFIX} Failed to track usage:`, err);
+                });
+              }
 
               // Send final metadata
               const metaData = JSON.stringify({
