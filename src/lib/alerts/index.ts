@@ -49,3 +49,10 @@ export {
   formatTime,
   formatDate,
 } from './templates';
+
+// Poll State
+export {
+  getLastPollTime,
+  updateLastPollTime,
+  initPollStateTable,
+} from './poll-state';
