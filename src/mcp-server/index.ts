@@ -5,29 +5,37 @@
  * Exposes Izzie's capabilities (email, tasks, GitHub) via the Model Context Protocol (MCP).
  * This allows external Claude instances (Claude Desktop, Claude Code, etc.) to use Izzie's tools.
  *
- * Usage:
- *   IZZIE_USER_ID=<user-id> npx tsx src/mcp-server/index.ts
+ * Supports two transport modes:
  *
- * Or add to Claude Desktop config (see README.md for details)
+ * 1. STDIO Transport (default):
+ *    - For local use with Claude Desktop or Claude Code
+ *    - Authentication via IZZIE_USER_ID environment variable
+ *    - Usage: IZZIE_USER_ID=<user-id> npx tsx src/mcp-server/index.ts
+ *
+ * 2. HTTP Transport (with OAuth 2.1):
+ *    - For remote access from web clients or remote Claude instances
+ *    - Authentication via Bearer token (better-auth session)
+ *    - Usage: MCP_TRANSPORT=http MCP_PORT=3001 npx tsx src/mcp-server/index.ts
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { getAuthContext, validateAuthContext } from './auth.js';
 import { registerMcpTools, getToolNames } from './tools.js';
+import { startHttpServer, getHttpConfig } from './http-server.js';
 
 const LOG_PREFIX = '[Izzie MCP]';
 const SERVER_NAME = 'izzie';
 const SERVER_VERSION = '1.0.0';
 
 /**
- * Main entry point for the MCP server
+ * Start the STDIO transport server (for local use)
  */
-async function main(): Promise<void> {
-  console.error(`${LOG_PREFIX} Starting Izzie MCP Server v${SERVER_VERSION}`);
+async function startStdioServer(): Promise<void> {
+  console.error(`${LOG_PREFIX} Starting STDIO transport...`);
 
   try {
-    // Get and validate authentication context
+    // Get and validate authentication context from environment
     const authContext = getAuthContext();
     validateAuthContext(authContext);
     console.error(`${LOG_PREFIX} Authenticated user: ${authContext.userId}`);
@@ -81,7 +89,31 @@ All operations are performed on behalf of the authenticated user.
       process.exit(0);
     });
   } catch (error) {
-    console.error(`${LOG_PREFIX} Failed to start server:`, error);
+    console.error(`${LOG_PREFIX} Failed to start STDIO server:`, error);
+    process.exit(1);
+  }
+}
+
+/**
+ * Main entry point for the MCP server
+ * Selects transport based on MCP_TRANSPORT environment variable
+ */
+async function main(): Promise<void> {
+  const transport = process.env.MCP_TRANSPORT || 'stdio';
+
+  console.error(`${LOG_PREFIX} Starting Izzie MCP Server v${SERVER_VERSION}`);
+  console.error(`${LOG_PREFIX} Transport: ${transport}`);
+
+  if (transport === 'http') {
+    // HTTP transport with OAuth authentication
+    const config = getHttpConfig();
+    await startHttpServer(config);
+  } else if (transport === 'stdio') {
+    // STDIO transport with environment variable authentication
+    await startStdioServer();
+  } else {
+    console.error(`${LOG_PREFIX} Unknown transport: ${transport}`);
+    console.error(`${LOG_PREFIX} Supported transports: stdio, http`);
     process.exit(1);
   }
 }

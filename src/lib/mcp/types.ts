@@ -121,3 +121,66 @@ export interface MCPServerStatus {
   tools: MCPTool[];
   resources: MCPResource[];
 }
+
+/**
+ * MCP Registry Types
+ * Types for discovering and configuring external MCP plugins
+ */
+
+/**
+ * Package distribution information
+ */
+export interface McpPackage {
+  type: 'npm' | 'pip' | 'docker' | 'binary';
+  name: string;
+  version?: string;
+  installCommand?: string;
+}
+
+/**
+ * Remote HTTP endpoint for MCP servers
+ */
+export interface McpRemote {
+  url: string;
+  transport: 'sse' | 'http';
+  authType?: 'none' | 'bearer' | 'api-key';
+}
+
+/**
+ * MCP Server information from registry
+ */
+export interface McpServerInfo {
+  name: string;
+  description: string;
+  version: string;
+  author: string;
+  homepage?: string;
+  repository?: string;
+  packages: McpPackage[];
+  remotes?: McpRemote[];
+  tools: string[];
+  categories?: string[];
+  downloads?: number;
+  stars?: number;
+  verified?: boolean;
+}
+
+/**
+ * Registry search options
+ */
+export interface RegistrySearchOptions {
+  limit?: number;
+  offset?: number;
+  category?: string;
+  verified?: boolean;
+}
+
+/**
+ * Registry API response wrapper
+ */
+export interface RegistryResponse<T> {
+  data: T;
+  total?: number;
+  page?: number;
+  hasMore?: boolean;
+}
