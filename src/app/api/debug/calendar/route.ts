@@ -7,6 +7,11 @@ import { requireAuth } from '@/lib/auth';
 import { listEvents } from '@/lib/calendar';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  // Block in production - debug endpoints should not be accessible
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const session = await requireAuth(request);
 

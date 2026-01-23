@@ -15,6 +15,11 @@ import { eq } from 'drizzle-orm';
 import type { Entity } from '@/lib/extraction/types';
 
 export async function POST(request: Request) {
+  // Block in production - test endpoints should not be accessible
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const body = await request.json();
     const {

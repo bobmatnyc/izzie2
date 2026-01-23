@@ -14,6 +14,11 @@ import { memoryEntries, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function POST(request: Request) {
+  // Block in production - test endpoints should not be accessible
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const body = await request.json();
     const {

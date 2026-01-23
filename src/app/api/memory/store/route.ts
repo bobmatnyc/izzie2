@@ -4,9 +4,10 @@
  * POST /api/memory/store
  * Store a new memory entry with vector embedding
  *
+ * Requires authentication. The userId is derived from the authenticated session.
+ *
  * Request body:
  * {
- *   userId: string;
  *   content: string;
  *   metadata?: Record<string, unknown>;
  *   conversationId?: string;
@@ -16,6 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 import { memoryService } from '@/lib/memory';
 import { z } from 'zod';
 
@@ -37,6 +39,17 @@ const StoreMemorySchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    let authSession;
+    try {
+      authSession = await requireAuth(request);
+    } catch {
+      return NextResponse.json(
+        { error: 'Unauthorized - authentication required' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate request
@@ -51,7 +64,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId, content, metadata, conversationId, importance, summary } = parsed.data;
+    // Override userId with authenticated user's ID (don't trust client-provided userId)
+    const userId = authSession.user.id;
+    const { content, metadata, conversationId, importance, summary } = parsed.data;
 
     // Store memory
     const memory = await memoryService.store(

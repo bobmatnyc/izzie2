@@ -9,6 +9,11 @@ import { NextResponse } from 'next/server';
 import { inngest } from '@/lib/events';
 
 export async function POST(request: Request) {
+  // Block in production - test endpoints should not be accessible
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const body = await request.json();
     const { eventName = 'test/event', data = {} } = body;

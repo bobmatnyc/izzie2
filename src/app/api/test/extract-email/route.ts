@@ -10,6 +10,11 @@ import { getEntityExtractor } from '@/lib/extraction/entity-extractor';
 import type { Email } from '@/lib/google/types';
 
 export async function POST(request: Request) {
+  // Block in production - test endpoints should not be accessible
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const body = await request.json();
     const { emailId, subject, body: emailBody, from, to, date } = body;
