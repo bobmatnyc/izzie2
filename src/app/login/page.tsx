@@ -3,6 +3,7 @@
 import { authClient } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 /**
  * Login Page
@@ -179,7 +180,15 @@ export default function LoginPage() {
 
         {/* Privacy notice */}
         <p className="mt-8 text-xs text-slate-400 text-center max-w-xs">
-          By signing in, you agree to let Izzie securely access your Gmail to provide AI-powered email intelligence.
+          By signing in, you agree to our{' '}
+          <Link href="/terms" className="text-slate-500 hover:text-slate-700 underline">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link href="/privacy" className="text-slate-500 hover:text-slate-700 underline">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </div>
     </main>
