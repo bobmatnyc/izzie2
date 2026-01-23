@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/poll-email",
+      "schedule": "0,15,30,45 * * * *"
+    },
+    {
+      "path": "/api/cron/poll-calendar",
+      "schedule": "5,20,35,50 * * * *"
+    }
+  ]
+}
