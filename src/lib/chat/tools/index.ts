@@ -13,6 +13,15 @@ import {
   deleteTaskListTool,
   renameTaskListTool,
 } from './tasks';
+import {
+  archiveEmailTool,
+  deleteEmailTool,
+  applyLabelTool,
+  listLabelsTool,
+  sendEmailTool,
+  bulkArchiveTool,
+  createDraftTool,
+} from './email';
 
 /**
  * All available chat tools
@@ -28,6 +37,14 @@ export const chatTools = {
   list_task_lists: listTaskListsTool,
   delete_task_list: deleteTaskListTool,
   rename_task_list: renameTaskListTool,
+  // Email management tools
+  archive_email: archiveEmailTool,
+  delete_email: deleteEmailTool,
+  apply_label: applyLabelTool,
+  list_labels: listLabelsTool,
+  send_email: sendEmailTool,
+  bulk_archive: bulkArchiveTool,
+  create_draft: createDraftTool,
 };
 
 /**

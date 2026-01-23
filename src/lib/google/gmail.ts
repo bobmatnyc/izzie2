@@ -174,6 +174,301 @@ export class GmailService {
   }
 
   /**
+   * Archive an email (remove from INBOX)
+   */
+  async archiveEmail(id: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: {
+          removeLabelIds: ['INBOX'],
+        },
+      });
+    } catch (error) {
+      console.error(`[Gmail] Failed to archive email ${id}:`, error);
+      throw new Error(`Failed to archive email: ${error}`);
+    }
+  }
+
+  /**
+   * Move an email to trash
+   */
+  async trashEmail(id: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.trash({
+        userId: 'me',
+        id,
+      });
+    } catch (error) {
+      console.error(`[Gmail] Failed to trash email ${id}:`, error);
+      throw new Error(`Failed to trash email: ${error}`);
+    }
+  }
+
+  /**
+   * Apply a label to an email
+   */
+  async applyLabel(id: string, labelId: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: {
+          addLabelIds: [labelId],
+        },
+      });
+    } catch (error) {
+      console.error(`[Gmail] Failed to apply label to email ${id}:`, error);
+      throw new Error(`Failed to apply label: ${error}`);
+    }
+  }
+
+  /**
+   * Remove a label from an email
+   */
+  async removeLabel(id: string, labelId: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: {
+          removeLabelIds: [labelId],
+        },
+      });
+    } catch (error) {
+      console.error(`[Gmail] Failed to remove label from email ${id}:`, error);
+      throw new Error(`Failed to remove label: ${error}`);
+    }
+  }
+
+  /**
+   * Move email to a folder/label (removes from INBOX, adds target label)
+   */
+  async moveToFolder(id: string, labelId: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: {
+          addLabelIds: [labelId],
+          removeLabelIds: ['INBOX'],
+        },
+      });
+    } catch (error) {
+      console.error(`[Gmail] Failed to move email ${id}:`, error);
+      throw new Error(`Failed to move email: ${error}`);
+    }
+  }
+
+  /**
+   * Find label by name (case-insensitive)
+   */
+  async findLabelByName(labelName: string): Promise<GmailLabel | null> {
+    const labels = await this.getLabels();
+    return (
+      labels.find(
+        (label) => label.name.toLowerCase() === labelName.toLowerCase()
+      ) || null
+    );
+  }
+
+  /**
+   * Search for emails matching a query
+   */
+  async searchEmails(
+    query: string,
+    maxResults: number = 10
+  ): Promise<Email[]> {
+    try {
+      const response = await this.gmail.users.messages.list({
+        userId: 'me',
+        q: query,
+        maxResults,
+      });
+
+      const messages = response.data.messages || [];
+      const emails: Email[] = [];
+
+      for (const message of messages) {
+        if (message.id) {
+          try {
+            const email = await this.getEmail(message.id);
+            emails.push(email);
+            await this.sleep(RATE_LIMIT_DELAY_MS);
+          } catch (error) {
+            console.error(`[Gmail] Failed to fetch email ${message.id}:`, error);
+          }
+        }
+      }
+
+      return emails;
+    } catch (error) {
+      console.error('[Gmail] Failed to search emails:', error);
+      throw new Error(`Failed to search emails: ${error}`);
+    }
+  }
+
+  /**
+   * Send an email
+   */
+  async sendEmail(
+    to: string,
+    subject: string,
+    body: string,
+    options?: {
+      cc?: string;
+      bcc?: string;
+      replyTo?: string;
+      isHtml?: boolean;
+    }
+  ): Promise<string> {
+    try {
+      const messageParts: string[] = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+      ];
+
+      if (options?.cc) {
+        messageParts.push(`Cc: ${options.cc}`);
+      }
+
+      if (options?.bcc) {
+        messageParts.push(`Bcc: ${options.bcc}`);
+      }
+
+      if (options?.replyTo) {
+        messageParts.push(`Reply-To: ${options.replyTo}`);
+      }
+
+      const contentType = options?.isHtml
+        ? 'Content-Type: text/html; charset=utf-8'
+        : 'Content-Type: text/plain; charset=utf-8';
+      messageParts.push(contentType);
+      messageParts.push('');
+      messageParts.push(body);
+
+      const rawMessage = messageParts.join('\r\n');
+      const encodedMessage = Buffer.from(rawMessage)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      const response = await this.gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage,
+        },
+      });
+
+      return response.data.id || '';
+    } catch (error) {
+      console.error('[Gmail] Failed to send email:', error);
+      throw new Error(`Failed to send email: ${error}`);
+    }
+  }
+
+  /**
+   * Create a draft email
+   */
+  async createDraft(
+    to: string,
+    subject: string,
+    body: string,
+    options?: {
+      cc?: string;
+      bcc?: string;
+      isHtml?: boolean;
+    }
+  ): Promise<string> {
+    try {
+      const messageParts: string[] = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+      ];
+
+      if (options?.cc) {
+        messageParts.push(`Cc: ${options.cc}`);
+      }
+
+      if (options?.bcc) {
+        messageParts.push(`Bcc: ${options.bcc}`);
+      }
+
+      const contentType = options?.isHtml
+        ? 'Content-Type: text/html; charset=utf-8'
+        : 'Content-Type: text/plain; charset=utf-8';
+      messageParts.push(contentType);
+      messageParts.push('');
+      messageParts.push(body);
+
+      const rawMessage = messageParts.join('\r\n');
+      const encodedMessage = Buffer.from(rawMessage)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      const response = await this.gmail.users.drafts.create({
+        userId: 'me',
+        requestBody: {
+          message: {
+            raw: encodedMessage,
+          },
+        },
+      });
+
+      return response.data.id || '';
+    } catch (error) {
+      console.error('[Gmail] Failed to create draft:', error);
+      throw new Error(`Failed to create draft: ${error}`);
+    }
+  }
+
+  /**
+   * Batch archive multiple emails
+   */
+  async batchArchive(ids: string[]): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+
+    for (const id of ids) {
+      try {
+        await this.archiveEmail(id);
+        success++;
+        await this.sleep(RATE_LIMIT_DELAY_MS);
+      } catch (error) {
+        console.error(`[Gmail] Failed to archive email ${id}:`, error);
+        failed++;
+      }
+    }
+
+    return { success, failed };
+  }
+
+  /**
+   * Batch trash multiple emails
+   */
+  async batchTrash(ids: string[]): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+
+    for (const id of ids) {
+      try {
+        await this.trashEmail(id);
+        success++;
+        await this.sleep(RATE_LIMIT_DELAY_MS);
+      } catch (error) {
+        console.error(`[Gmail] Failed to trash email ${id}:`, error);
+        failed++;
+      }
+    }
+
+    return { success, failed };
+  }
+
+  /**
    * Parse Gmail API message into Email type
    */
   private parseEmail(message: gmail_v1.Schema$Message): Email {
