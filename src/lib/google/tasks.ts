@@ -253,3 +253,171 @@ export async function fetchAllTasks(
   console.log(`[Tasks] Total: ${allTasks.length} tasks across all lists`);
   return allTasks;
 }
+
+/**
+ * Create a new task in a task list
+ */
+export async function createTask(
+  userId: string,
+  taskListId: string,
+  title: string,
+  options?: {
+    notes?: string;
+    due?: string; // RFC 3339 timestamp (e.g., "2024-12-31T00:00:00Z")
+    parent?: string; // Parent task ID for subtasks
+  }
+): Promise<Task> {
+  const { tasks } = await getTasksClient(userId);
+
+  const response = await tasks.tasks.insert({
+    tasklist: taskListId,
+    requestBody: {
+      title,
+      notes: options?.notes,
+      due: options?.due,
+      parent: options?.parent,
+    },
+  });
+
+  console.log(`[Tasks] Created task "${title}" in list ${taskListId}`);
+  return mapTask(response.data);
+}
+
+/**
+ * Update an existing task
+ */
+export async function updateTask(
+  userId: string,
+  taskListId: string,
+  taskId: string,
+  updates: {
+    title?: string;
+    notes?: string;
+    due?: string;
+    status?: 'needsAction' | 'completed';
+  }
+): Promise<Task> {
+  const { tasks } = await getTasksClient(userId);
+
+  // First get the existing task to merge updates
+  const existingResponse = await tasks.tasks.get({
+    tasklist: taskListId,
+    task: taskId,
+  });
+
+  const response = await tasks.tasks.update({
+    tasklist: taskListId,
+    task: taskId,
+    requestBody: {
+      ...existingResponse.data,
+      ...updates,
+    },
+  });
+
+  console.log(`[Tasks] Updated task ${taskId} in list ${taskListId}`);
+  return mapTask(response.data);
+}
+
+/**
+ * Mark a task as completed
+ */
+export async function completeTask(
+  userId: string,
+  taskListId: string,
+  taskId: string
+): Promise<Task> {
+  const { tasks } = await getTasksClient(userId);
+
+  // Get existing task first
+  const existingResponse = await tasks.tasks.get({
+    tasklist: taskListId,
+    task: taskId,
+  });
+
+  const response = await tasks.tasks.update({
+    tasklist: taskListId,
+    task: taskId,
+    requestBody: {
+      ...existingResponse.data,
+      status: 'completed',
+    },
+  });
+
+  console.log(`[Tasks] Completed task ${taskId} in list ${taskListId}`);
+  return mapTask(response.data);
+}
+
+/**
+ * Delete a task
+ */
+export async function deleteTask(
+  userId: string,
+  taskListId: string,
+  taskId: string
+): Promise<void> {
+  const { tasks } = await getTasksClient(userId);
+
+  await tasks.tasks.delete({
+    tasklist: taskListId,
+    task: taskId,
+  });
+
+  console.log(`[Tasks] Deleted task ${taskId} from list ${taskListId}`);
+}
+
+/**
+ * Create a new task list
+ */
+export async function createTaskList(
+  userId: string,
+  title: string
+): Promise<TaskList> {
+  const { tasks } = await getTasksClient(userId);
+
+  const response = await tasks.tasklists.insert({
+    requestBody: {
+      title,
+    },
+  });
+
+  console.log(`[Tasks] Created task list "${title}"`);
+  return mapTaskList(response.data);
+}
+
+/**
+ * Delete a task list
+ */
+export async function deleteTaskList(
+  userId: string,
+  taskListId: string
+): Promise<void> {
+  const { tasks } = await getTasksClient(userId);
+
+  await tasks.tasklists.delete({
+    tasklist: taskListId,
+  });
+
+  console.log(`[Tasks] Deleted task list ${taskListId}`);
+}
+
+/**
+ * Update a task list (rename)
+ */
+export async function updateTaskList(
+  userId: string,
+  taskListId: string,
+  title: string
+): Promise<TaskList> {
+  const { tasks } = await getTasksClient(userId);
+
+  const response = await tasks.tasklists.update({
+    tasklist: taskListId,
+    requestBody: {
+      id: taskListId,
+      title,
+    },
+  });
+
+  console.log(`[Tasks] Updated task list ${taskListId} to "${title}"`);
+  return mapTaskList(response.data);
+}

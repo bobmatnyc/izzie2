@@ -4,6 +4,15 @@
  */
 
 import { researchTool, checkResearchStatusTool } from './research';
+import {
+  createTaskTool,
+  completeTaskTool,
+  listTasksTool,
+  createTaskListTool,
+  listTaskListsTool,
+  deleteTaskListTool,
+  renameTaskListTool,
+} from './tasks';
 
 /**
  * All available chat tools
@@ -12,6 +21,13 @@ import { researchTool, checkResearchStatusTool } from './research';
 export const chatTools = {
   research: researchTool,
   check_research_status: checkResearchStatusTool,
+  create_task: createTaskTool,
+  complete_task: completeTaskTool,
+  list_tasks: listTasksTool,
+  create_task_list: createTaskListTool,
+  list_task_lists: listTaskListsTool,
+  delete_task_list: deleteTaskListTool,
+  rename_task_list: renameTaskListTool,
 };
 
 /**
