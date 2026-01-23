@@ -15,7 +15,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { rateLimit, getClientIP, getRetryAfterSeconds } from '@/lib/rate-limit';
 import { getAIClient } from '@/lib/ai/client';
-import { MODELS, estimateTokens } from '@/lib/ai/models';
+import { MODELS, estimateTokens, MODEL_ROLES, ESCALATION_CONFIG } from '@/lib/ai/models';
+import { validateResponse } from '@/lib/chat/response-validator';
 import { retrieveContext } from '@/lib/chat/context-retrieval';
 import { formatContextForPrompt } from '@/lib/chat/context-formatter';
 import { getUserPreferences, formatWritingStyleInstructions } from '@/lib/chat/preferences';
@@ -291,9 +292,15 @@ ${RESPONSE_FORMAT_INSTRUCTION}
           while (toolIterations < MAX_TOOL_ITERATIONS) {
             // Use non-streaming API when tools are available to detect tool calls
             if (tools && tools.length > 0) {
-              const response = await aiClient.chat(conversationMessages, {
-                model: MODELS.GENERAL,
-                temperature: 0.7,
+              let currentModel = MODELS.GENERAL;
+              let currentTemperature = 0.7;
+              let escalationMetadata: any = null;
+              let shouldRetryWithEscalation = false;
+
+              // First attempt with GENERAL model
+              let response = await aiClient.chat(conversationMessages, {
+                model: currentModel,
+                temperature: currentTemperature,
                 maxTokens: 2000,
                 tools,
                 tool_choice: 'auto',
@@ -306,6 +313,70 @@ ${RESPONSE_FORMAT_INSTRUCTION}
               }
 
               fullContent = response.content;
+
+              // Validate response quality and detect cognitive failures
+              const quality = validateResponse(fullContent);
+
+              if (quality.shouldEscalate && ESCALATION_CONFIG.LOG_ESCALATIONS) {
+                console.log(
+                  `${LOG_PREFIX} Escalation triggered - Score: ${quality.score.toFixed(2)}, Reason: ${quality.reason}`
+                );
+              }
+
+              // If escalation is needed and config allows it, retry with higher-tier model
+              if (
+                quality.shouldEscalate &&
+                toolIterations === 0 // Only escalate on first attempt
+              ) {
+                const fallbackModel = MODEL_ROLES.GENERAL.fallback;
+
+                if (fallbackModel) {
+                  shouldRetryWithEscalation = true;
+                  const originalModel = currentModel;
+                  currentModel = fallbackModel as typeof currentModel; // Escalate to ORCHESTRATOR (Opus)
+                  currentTemperature = Math.max(0.5, currentTemperature - 0.2); // Lower temperature for more focused response
+
+                  escalationMetadata = {
+                    originalModel: originalModel,
+                    escalatedModel: currentModel,
+                    escalationReason: quality.reason,
+                    qualityScore: quality.score,
+                    signals: quality.signals.map((s) => s.type),
+                    assessmentConfidence: quality.assessmentConfidence,
+                  };
+
+                  console.log(
+                    `${LOG_PREFIX} Escalating from ${originalModel} to ${currentModel} (temp: ${currentTemperature})`
+                  );
+
+                  // Retry with escalated model
+                  response = await aiClient.chat(conversationMessages, {
+                    model: currentModel,
+                    temperature: currentTemperature,
+                    maxTokens: 2000,
+                    tools,
+                    tool_choice: 'auto',
+                  });
+
+                  // Accumulate escalation attempt tokens
+                  if (response.usage) {
+                    totalPromptTokens += response.usage.promptTokens;
+                    totalCompletionTokens += response.usage.completionTokens;
+                  }
+
+                  fullContent = response.content;
+                }
+              }
+
+              // Send escalation notification if it occurred
+              if (escalationMetadata) {
+                const escalationNotification = JSON.stringify({
+                  type: 'escalation',
+                  metadata: escalationMetadata,
+                });
+                controller.enqueue(encoder.encode(`data: ${escalationNotification}\n\n`));
+              }
+
               const toolCalls = response.tool_calls;
 
               // If model wants to use tools, execute them and continue
@@ -471,7 +542,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                 });
               }
 
-              // Send final metadata
+              // Send final metadata (including escalation info if applicable)
               const metaData = JSON.stringify({
                 type: 'metadata',
                 sessionId: updatedSession.id,
@@ -479,6 +550,11 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                 messageCount: updatedSession.messageCount,
                 hasCurrentTask: !!updatedSession.currentTask,
                 compressionActive: !!updatedSession.compressedHistory,
+                // Include quality assessment in metadata
+                quality: {
+                  validated: true,
+                  // Quality info will be added if escalation occurred during streaming
+                },
               });
 
               controller.enqueue(encoder.encode(`data: ${metaData}\n\n`));
