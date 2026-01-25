@@ -455,7 +455,14 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                 controller.enqueue(encoder.encode(`data: ${escalationNotification}\n\n`));
               }
 
-              // This is the final response
+              // This is the final response - send it to client
+              const finalResponseData = JSON.stringify({
+                delta: fullContent,
+                content: fullContent,
+                done: true,
+                sessionId: chatSession.id,
+              });
+              controller.enqueue(encoder.encode(`data: ${finalResponseData}\n\n`));
               break;
             }
 
