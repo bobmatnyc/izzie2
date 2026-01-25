@@ -332,8 +332,60 @@ ${RESPONSE_FORMAT_INSTRUCTION}
               }
 
               fullContent = response.content;
+              const toolCalls = response.tool_calls;
 
-              // Validate response quality and detect cognitive failures
+              // Check for tool calls FIRST - skip quality validation if model is requesting tools
+              // (empty content is normal when making tool calls)
+              if (toolCalls && toolCalls.length > 0) {
+                console.log(`${LOG_PREFIX} Model requested ${toolCalls.length} tool calls`);
+
+                // Add assistant message with tool calls to conversation
+                conversationMessages.push({
+                  role: 'assistant',
+                  content: fullContent,
+                  tool_calls: toolCalls,
+                } as any);
+
+                // Execute each tool and add results
+                for (const toolCall of toolCalls) {
+                  const toolName = toolCall.function.name;
+                  const toolArgs = JSON.parse(toolCall.function.arguments);
+
+                  console.log(`${LOG_PREFIX} Executing tool: ${toolName}`);
+
+                  // Send tool execution notification to client
+                  const toolNotification = JSON.stringify({
+                    type: 'tool_execution',
+                    tool: toolName,
+                    status: 'executing',
+                  });
+                  controller.enqueue(encoder.encode(`data: ${toolNotification}\n\n`));
+
+                  const result = await executeTool(toolName, toolArgs, userId);
+
+                  // Add tool result to conversation
+                  conversationMessages.push({
+                    role: 'tool',
+                    content: JSON.stringify(result),
+                    tool_call_id: toolCall.id,
+                    name: toolName,
+                  } as any);
+
+                  // Send tool result notification
+                  const toolResult = JSON.stringify({
+                    type: 'tool_result',
+                    tool: toolName,
+                    success: result.success,
+                  });
+                  controller.enqueue(encoder.encode(`data: ${toolResult}\n\n`));
+                }
+
+                toolIterations++;
+                continue; // Continue loop to get model's response with tool results
+              }
+
+              // No tool calls - this is a final text response
+              // NOW validate response quality and detect cognitive failures
               const quality = validateResponse(fullContent);
 
               if (quality.shouldEscalate && ESCALATION_CONFIG.LOG_ESCALATIONS) {
@@ -396,58 +448,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                 controller.enqueue(encoder.encode(`data: ${escalationNotification}\n\n`));
               }
 
-              const toolCalls = response.tool_calls;
-
-              // If model wants to use tools, execute them and continue
-              if (toolCalls && toolCalls.length > 0) {
-                console.log(`${LOG_PREFIX} Model requested ${toolCalls.length} tool calls`);
-
-                // Add assistant message with tool calls to conversation
-                conversationMessages.push({
-                  role: 'assistant',
-                  content: fullContent,
-                  tool_calls: toolCalls,
-                } as any);
-
-                // Execute each tool and add results
-                for (const toolCall of toolCalls) {
-                  const toolName = toolCall.function.name;
-                  const toolArgs = JSON.parse(toolCall.function.arguments);
-
-                  console.log(`${LOG_PREFIX} Executing tool: ${toolName}`);
-
-                  // Send tool execution notification to client
-                  const toolNotification = JSON.stringify({
-                    type: 'tool_execution',
-                    tool: toolName,
-                    status: 'executing',
-                  });
-                  controller.enqueue(encoder.encode(`data: ${toolNotification}\n\n`));
-
-                  const result = await executeTool(toolName, toolArgs, userId);
-
-                  // Add tool result to conversation
-                  conversationMessages.push({
-                    role: 'tool',
-                    content: JSON.stringify(result),
-                    tool_call_id: toolCall.id,
-                    name: toolName,
-                  } as any);
-
-                  // Send tool result notification
-                  const toolResult = JSON.stringify({
-                    type: 'tool_result',
-                    tool: toolName,
-                    success: result.success,
-                  });
-                  controller.enqueue(encoder.encode(`data: ${toolResult}\n\n`));
-                }
-
-                toolIterations++;
-                continue; // Continue loop to get model's response with tool results
-              }
-
-              // No tool calls, this is the final response
+              // This is the final response
               break;
             }
 
