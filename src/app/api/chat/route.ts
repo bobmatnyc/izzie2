@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
   try {
     // Test auth bypass: Check X-Test-Secret header against TEST_API_SECRET env var
     const testSecret = request.headers.get('X-Test-Secret');
-    const expectedTestSecret = process.env.TEST_API_SECRET;
+    const expectedTestSecret = process.env.CHAT_TEST_SECRET;
     const testUserId = request.headers.get('X-Test-User-Id');
 
     let userId: string;
