@@ -349,7 +349,14 @@ ${RESPONSE_FORMAT_INSTRUCTION}
                 // Execute each tool and add results
                 for (const toolCall of toolCalls) {
                   const toolName = toolCall.function.name;
-                  const toolArgs = JSON.parse(toolCall.function.arguments);
+                  let toolArgs = {};
+                  try {
+                    toolArgs = toolCall.function.arguments
+                      ? JSON.parse(toolCall.function.arguments)
+                      : {};
+                  } catch (e) {
+                    console.error(`${LOG_PREFIX} Failed to parse tool arguments for ${toolName}:`, toolCall.function.arguments);
+                  }
 
                   console.log(`${LOG_PREFIX} Executing tool: ${toolName}`);
 
