@@ -23,9 +23,8 @@ export {
   getAllAccessibleKnowledge,
 } from './shared-knowledge';
 
-// Unified retrieval
+// Unified retrieval (stub - tables not yet in schema)
 export {
   retrieveKnowledge,
-  browseKnowledge,
   getUserOrganizations,
 } from './retrieval';

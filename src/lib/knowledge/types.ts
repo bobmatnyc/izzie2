@@ -3,15 +3,44 @@
  *
  * Type definitions for the two-tier knowledge architecture.
  * Supports global, organization, and personal knowledge sources.
+ *
+ * NOTE: Types are defined locally since schema tables not yet created.
  */
 
-import type {
-  SharedKnowledge,
-  NewSharedKnowledge,
-  SharedKnowledgeType,
-  SharedKnowledgeVisibility,
-  Organization,
-} from '../db/schema';
+/**
+ * Shared knowledge types (would come from schema)
+ */
+export type SharedKnowledgeType = 'documentation' | 'faq' | 'procedure' | 'policy' | 'reference' | 'template';
+export type SharedKnowledgeVisibility = 'global' | 'organization' | 'private';
+
+/**
+ * Shared knowledge item (would come from schema)
+ */
+export interface SharedKnowledge {
+  id: string;
+  organizationId: string | null;
+  type: SharedKnowledgeType;
+  title: string;
+  content: string;
+  visibility: SharedKnowledgeVisibility;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string | null;
+}
+
+export type NewSharedKnowledge = Omit<SharedKnowledge, 'id' | 'createdAt' | 'updatedAt'>;
+
+/**
+ * Organization (would come from schema)
+ */
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * Knowledge source tier
@@ -58,15 +87,4 @@ export const DEFAULT_RETRIEVAL_OPTIONS: Required<Omit<KnowledgeRetrievalOptions,
   includeOrganization: true,
   includePersonal: true,
   limit: 20,
-};
-
-/**
- * Re-export schema types for convenience
- */
-export type {
-  SharedKnowledge,
-  NewSharedKnowledge,
-  SharedKnowledgeType,
-  SharedKnowledgeVisibility,
-  Organization,
 };

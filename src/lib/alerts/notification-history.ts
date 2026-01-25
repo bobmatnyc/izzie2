@@ -1,48 +1,28 @@
 /**
  * Notification History Management
- * Tracks sent notifications to prevent duplicates
+ *
+ * NOTE: Currently stubbed - notification_history table not yet in schema.
+ * When the table is added, this file should be updated to use the actual database.
  */
 
-import { dbClient } from '@/lib/db';
-import { notificationHistory } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
 import type { AlertSource, NotificationChannel } from './types';
 
 const LOG_PREFIX = '[NotificationHistory]';
 
 /**
- * Check if a notification has already been sent for this source item
+ * Check if a notification has already been sent (STUB - always returns false)
  */
 export async function hasNotificationBeenSent(
   userId: string,
   sourceId: string,
   channel: NotificationChannel
 ): Promise<boolean> {
-  try {
-    const db = dbClient.getDb();
-
-    const existing = await db
-      .select({ id: notificationHistory.id })
-      .from(notificationHistory)
-      .where(
-        and(
-          eq(notificationHistory.userId, userId),
-          eq(notificationHistory.sourceId, sourceId),
-          eq(notificationHistory.channel, channel)
-        )
-      )
-      .limit(1);
-
-    return existing.length > 0;
-  } catch (error) {
-    console.error(`${LOG_PREFIX} Error checking notification history:`, error);
-    // On error, return false to allow sending (fail open for notifications)
-    return false;
-  }
+  // Stub: always allow sending
+  return false;
 }
 
 /**
- * Record a notification that was successfully sent
+ * Record a notification that was successfully sent (STUB)
  */
 export async function recordNotification(
   userId: string,
@@ -51,26 +31,7 @@ export async function recordNotification(
   alertLevel: string,
   channel: NotificationChannel
 ): Promise<void> {
-  try {
-    const db = dbClient.getDb();
-
-    await db
-      .insert(notificationHistory)
-      .values({
-        userId,
-        sourceType,
-        sourceId,
-        alertLevel,
-        channel,
-        deliveredAt: new Date(),
-      })
-      .onConflictDoNothing(); // Ignore if already exists
-
-    console.log(
-      `${LOG_PREFIX} Recorded ${channel} notification for ${sourceType}:${sourceId.slice(0, 8)}...`
-    );
-  } catch (error) {
-    // Log but don't throw - recording failure shouldn't block the flow
-    console.error(`${LOG_PREFIX} Error recording notification:`, error);
-  }
+  console.log(
+    `${LOG_PREFIX} STUB: Would record ${channel} notification for ${sourceType}:${sourceId.slice(0, 8)}...`
+  );
 }

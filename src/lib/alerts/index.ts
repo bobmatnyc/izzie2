@@ -57,6 +57,26 @@ export {
   initPollStateTable,
 } from './poll-state';
 
+// Notification Queue (stub - tables not yet in schema)
+export {
+  addToQueue,
+  getQueuedAlerts,
+  flushBatchQueue,
+  flushAllP2Batches,
+  getReadyQuietHoursAlerts,
+  getUsersWithPendingBatch,
+  getQueueStats as getPersistentQueueStats,
+  clearUserQueues,
+  QUEUE_TYPES,
+  type QueueType,
+} from './notification-queue';
+
+// Notification History (deduplication)
+export {
+  hasNotificationBeenSent,
+  recordNotification,
+} from './notification-history';
+
 // Preferences
 export {
   getAlertPreferences,

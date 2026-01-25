@@ -69,3 +69,5 @@ test-results/
 screenshots/
 .claude-mpm/correlations/
 .env.vercel.production
+.env.vercel
+.env.vercel-prod
