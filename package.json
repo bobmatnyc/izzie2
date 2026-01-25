@@ -25,6 +25,8 @@
     "test:e2e:playwright:debug": "playwright test --debug",
     "test:e2e:playwright:headed": "playwright test --headed",
     "test:proxy": "tsx tests/proxy/run-proxy-tests.ts",
+    "test:regression": "tsx tests/e2e/regression/run-tests.ts",
+    "test:regression:verbose": "CHAT_TEST_VERBOSE=true tsx tests/e2e/regression/run-tests.ts",
     "test:cov": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "version:patch": "./scripts/version.sh patch",
