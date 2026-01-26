@@ -330,6 +330,12 @@ ${RESPONSE_FORMAT_INSTRUCTION}
               let escalationMetadata: any = null;
               let shouldRetryWithEscalation = false;
 
+              // Debug: Log tools being sent to API
+              console.log(`${LOG_PREFIX} Sending ${tools.length} tools to model`);
+              if (tools.length > 0) {
+                console.log(`${LOG_PREFIX} First tool: ${tools[0].function.name}`);
+              }
+
               // First attempt with GENERAL model
               let response = await aiClient.chat(conversationMessages, {
                 model: currentModel,
@@ -347,6 +353,19 @@ ${RESPONSE_FORMAT_INSTRUCTION}
 
               fullContent = response.content;
               const toolCalls = response.tool_calls;
+
+              // Debug: Log response tool call info
+              console.log(`${LOG_PREFIX} Response has tool_calls: ${!!toolCalls}, count: ${toolCalls?.length || 0}`);
+
+              // Debug: Check for XML tag leakage (model outputting XML instead of using function calling)
+              if (!toolCalls?.length && fullContent && fullContent.includes('<') && fullContent.includes('>')) {
+                const xmlPattern = /<([a-z_]+)>/i;
+                const match = fullContent.match(xmlPattern);
+                if (match) {
+                  console.warn(`${LOG_PREFIX} WARNING: Model output XML tag "${match[0]}" instead of using function calling!`);
+                  console.warn(`${LOG_PREFIX} Tools available: ${tools.length}, Tool names: ${tools.slice(0, 3).map(t => t.function.name).join(', ')}`);
+                }
+              }
 
               // Check for tool calls FIRST - skip quality validation if model is requesting tools
               // (empty content is normal when making tool calls)
