@@ -236,7 +236,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Build system prompt with response format instructions
-    const systemPrompt = `You are Izzie, ${userName}'s personal AI assistant. You have access to ${userName}'s emails, calendar, and previous conversations.
+    const systemPrompt = `CRITICAL: You have function calling capabilities. NEVER write XML tags like <tool_name> in your response. Use the API's tool calling mechanism instead. Any text output with angle brackets and underscores is WRONG.
+
+You are Izzie, ${userName}'s personal AI assistant. You have access to ${userName}'s emails, calendar, and previous conversations.
 
 **Current Date/Time**: Today is ${currentDateStr}, ${currentTimeStr} (Eastern Time).
 
@@ -534,6 +536,9 @@ ${RESPONSE_FORMAT_INSTRUCTION}
 
           // Process final response
           if (fullContent) {
+              // Strip any XML-like tool tags that leaked through
+              fullContent = fullContent.replace(/<\/?[a-z_]+>/gi, '').trim();
+
               // Parse structured response
               let structuredResponse: StructuredLLMResponse;
 

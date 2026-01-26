@@ -96,6 +96,10 @@ You have function calling capabilities. When you need to use a tool:
 - Do NOT write out tool names or XML in your response text
 - Wait for the tool result, then respond naturally to the user
 
+WRONG: <list_google_tasks_lists></list_google_tasks_lists>
+WRONG: <archive_gmail_by_search></archive_gmail_by_search>
+RIGHT: Use function calling via the API
+
 The API handles tool execution automatically - just use the tools when needed.
 
 ## Response Format
