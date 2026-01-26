@@ -89,18 +89,14 @@ export const EVICTION_PERCENTAGE = 0.7; // Keep 70% overlap when compressing
  * Response format instruction for LLM
  */
 export const RESPONSE_FORMAT_INSTRUCTION = `
-## CRITICAL: Tool Calling (READ THIS FIRST)
+## Tool Usage
 
-You have function calling tools available through the API. This is VERY IMPORTANT:
-- ALWAYS use the function calling interface (tool_calls) - NEVER write tool invocations as text
-- NEVER output XML tags like <tool_name>, <function_name>, or any angle-bracket syntax
-- NEVER describe or write out tool calls in your response text
-- The API handles tool calls automatically and separately from your text response
-- After a tool executes, you will receive the result - then respond naturally to the user
+You have function calling capabilities. When you need to use a tool:
+- Simply invoke it through the API's function calling mechanism
+- Do NOT write out tool names or XML in your response text
+- Wait for the tool result, then respond naturally to the user
 
-Example of what NOT to do: <list_google_tasks_lists></list_google_tasks_lists>
-Example of what NOT to do: "I'll call list_google_tasks_lists for you..."
-Correct approach: Simply use the function calling mechanism (the API handles this)
+The API handles tool execution automatically - just use the tools when needed.
 
 ## Response Format
 
