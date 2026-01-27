@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { dbClient } from '@/lib/db';
 import { users, sentReminders } from '@/lib/db/schema';
-import { and, eq, lt } from 'drizzle-orm';
+import { lt } from 'drizzle-orm';
 import { getGoogleTokens, updateGoogleTokens } from '@/lib/auth';
 import { CalendarService } from '@/lib/google/calendar';
 import { getTelegramLink } from '@/lib/telegram/linking';
@@ -52,7 +52,14 @@ function createOAuth2Client(
 }
 
 /**
- * Check if event starts within threshold minutes
+ * Check if event starts within a specific non-overlapping window for a threshold
+ *
+ * Windows are defined to prevent duplicate alerts:
+ * - 60-minute reminder: fires when 55-65 minutes before event
+ * - 15-minute reminder: fires when 10-20 minutes before event
+ *
+ * This ensures only ONE reminder fires per window, preventing duplicates
+ * when an event is close to multiple threshold boundaries.
  */
 function isEventStartingSoon(
   event: { start: { dateTime: string; timeZone?: string } },
@@ -63,46 +70,38 @@ function isEventStartingSoon(
   const now = new Date();
   const minutesUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60);
 
-  // Event is starting within the threshold window (e.g., 58-62 minutes for 60-min threshold)
-  return minutesUntilStart > 0 && minutesUntilStart <= thresholdMinutes + 2;
+  // Define non-overlapping windows for each threshold
+  // 60-min reminder: 55-65 minutes before (10-minute window centered on 60)
+  // 15-min reminder: 10-20 minutes before (10-minute window centered on 15)
+  const windowMin = thresholdMinutes - 5;
+  const windowMax = thresholdMinutes + 5;
+
+  return minutesUntilStart > windowMin && minutesUntilStart <= windowMax;
 }
 
 /**
- * Check if a reminder has already been sent for this event/threshold
+ * Attempt to claim a reminder slot atomically.
+ * Returns true if we successfully claimed it (can proceed to send).
+ * Returns false if another instance already claimed it.
+ *
+ * This prevents race conditions where two instances both check,
+ * both find no record, and both send the reminder.
  */
-async function hasReminderBeenSent(
+async function claimReminderSlot(
   db: ReturnType<typeof dbClient.getDb>,
   userId: string,
   eventId: string,
   threshold: number
 ): Promise<boolean> {
-  const existing = await db
-    .select({ id: sentReminders.id })
-    .from(sentReminders)
-    .where(
-      and(
-        eq(sentReminders.userId, userId),
-        eq(sentReminders.eventId, eventId),
-        eq(sentReminders.reminderThreshold, threshold)
-      )
-    )
-    .limit(1);
-  return existing.length > 0;
-}
-
-/**
- * Record that a reminder has been sent
- */
-async function recordReminderSent(
-  db: ReturnType<typeof dbClient.getDb>,
-  userId: string,
-  eventId: string,
-  threshold: number
-): Promise<void> {
-  await db
+  const inserted = await db
     .insert(sentReminders)
     .values({ userId, eventId, reminderThreshold: threshold })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: sentReminders.id });
+
+  // If inserted.length > 0, we successfully claimed the slot
+  // If inserted.length === 0, another instance already claimed it
+  return inserted.length > 0;
 }
 
 /**
@@ -195,29 +194,34 @@ async function pollUserCalendar(
 
         // Check each reminder threshold
         for (const threshold of REMINDER_THRESHOLDS) {
-          // Skip if we've already sent this reminder (check database)
-          const alreadySent = await hasReminderBeenSent(db, userId, event.id, threshold);
-          if (alreadySent) {
+          // Check if event is starting within this threshold's window
+          if (!isEventStartingSoon(event, threshold)) {
             continue;
           }
 
-          // Check if event is starting within this threshold
-          if (isEventStartingSoon(event, threshold)) {
-            // Classify the event
-            const alert = classifyCalendarEvent(event, config);
+          // Attempt to atomically claim this reminder slot BEFORE sending.
+          // This prevents race conditions where two concurrent instances
+          // both check, both find no record, and both send.
+          const claimed = await claimReminderSlot(db, userId, event.id, threshold);
+          if (!claimed) {
+            // Another instance already claimed this reminder
+            console.log(
+              `${LOG_PREFIX} Reminder slot already claimed for "${event.summary}" (${threshold}min)`
+            );
+            continue;
+          }
 
-            // Only route non-silent alerts
-            if (alert.level !== AlertLevel.P3_SILENT) {
-              const deliveryResult = await routeAlert(alert, config, sendTelegram);
-              if (deliveryResult.success && deliveryResult.deliveredAt) {
-                alertsSent++;
-                // Record in database to prevent duplicates
-                await recordReminderSent(db, userId, event.id, threshold);
+          // We own this reminder slot - now safe to send
+          const alert = classifyCalendarEvent(event, config);
 
-                console.log(
-                  `${LOG_PREFIX} Sent ${threshold}min reminder for "${event.summary}" (${alert.level})`
-                );
-              }
+          // Only route non-silent alerts
+          if (alert.level !== AlertLevel.P3_SILENT) {
+            const deliveryResult = await routeAlert(alert, config, sendTelegram);
+            if (deliveryResult.success && deliveryResult.deliveredAt) {
+              alertsSent++;
+              console.log(
+                `${LOG_PREFIX} Sent ${threshold}min reminder for "${event.summary}" (${alert.level})`
+              );
             }
           }
         }
