@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, getGoogleTokens, updateGoogleTokens } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { auth, getGoogleTokens, updateGoogleTokens } from '@/lib/auth';
 
 import { google } from 'googleapis';
 import { getContactsService } from '@/lib/google/contacts';
@@ -46,8 +47,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Require authentication
-    const session = await requireAuth(request);
+    // Require authentication - use headers() from next/headers for proper cookie access
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized - authentication required');
+    }
     const userId = session.user.id;
 
     // Parse request body
