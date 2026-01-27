@@ -285,8 +285,8 @@ export default function ContactsSyncPage() {
         </div>
       )}
 
-      {/* Empty State */}
-      {!loading && !status.isRunning && status.entitiesSaved === 0 && !status.error && (
+      {/* Empty State - Never synced */}
+      {!loading && !status.isRunning && status.entitiesSaved === 0 && !status.error && !status.lastSync && (
         <div
           style={{
             backgroundColor: '#f9fafb',
@@ -300,6 +300,38 @@ export default function ContactsSyncPage() {
           <p style={{ fontSize: '1rem', color: '#6b7280', marginBottom: '0.5rem' }}>No contacts synced yet</p>
           <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
             Click "Start Sync" to import your Google Contacts as entities
+          </p>
+        </div>
+      )}
+
+      {/* Synced but found no contacts */}
+      {!loading && !status.isRunning && status.entitiesSaved === 0 && !status.error && status.lastSync && (
+        <div
+          style={{
+            backgroundColor: '#fef3c7',
+            border: '1px solid #fcd34d',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#92400e', marginBottom: '0.5rem' }}>
+            Sync Completed - No Contacts Found
+          </h3>
+          <p style={{ fontSize: '0.875rem', color: '#a16207', marginBottom: '0.75rem' }}>
+            Your Google Contacts appears to be empty. The sync ran successfully but found no contacts to import.
+          </p>
+          <p style={{ fontSize: '0.875rem', color: '#a16207' }}>
+            To add contacts, visit{' '}
+            <a
+              href="https://contacts.google.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#1d4ed8', textDecoration: 'underline' }}
+            >
+              contacts.google.com
+            </a>{' '}
+            and add some contacts, then try syncing again.
           </p>
         </div>
       )}
