@@ -32,6 +32,11 @@ import {
   updateGithubIssueTool,
   addGithubCommentTool,
 } from './github';
+import {
+  searchContactsTool,
+  getContactDetailsTool,
+  syncContactsTool,
+} from './contacts';
 
 /**
  * All available chat tools
@@ -64,6 +69,10 @@ export const chatTools = {
   create_github_issue: createGithubIssueTool,
   update_github_issue: updateGithubIssueTool,
   add_github_comment: addGithubCommentTool,
+  // Google Contacts tools
+  search_contacts: searchContactsTool,
+  get_contact_details: getContactDetailsTool,
+  sync_contacts: syncContactsTool,
 };
 
 /**
