@@ -5,11 +5,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, getGoogleTokens, updateGoogleTokens } from '@/lib/auth';
+
 import { google } from 'googleapis';
 import { getContactsService } from '@/lib/google/contacts';
 import { saveEntities } from '@/lib/weaviate/entities';
 import type { Entity } from '@/lib/extraction/types';
+
 import type { Contact } from '@/lib/google/types';
+
+// Allow longer execution time for contact sync (60 seconds)
+export const maxDuration = 60;
 
 // In-memory sync status (in production, use Redis or database)
 let syncStatus: {
@@ -49,22 +54,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { maxContacts = 1000 } = body;
 
-    // Start sync (don't await - run in background)
-    startSync(userId, maxContacts).catch((error) => {
-      console.error('[Contacts Sync] Background sync failed:', error);
-      syncStatus.isRunning = false;
-      syncStatus.error = error.message;
-    });
-
-    return NextResponse.json({
-      message: 'Contact sync started',
-      status: syncStatus,
-    });
+    // Run sync synchronously to capture errors properly
+    // (In-memory status doesn't work reliably on serverless)
+    try {
+      await startSync(userId, maxContacts);
+      return NextResponse.json({
+        message: 'Contact sync completed',
+        status: syncStatus,
+      });
+    } catch (syncError) {
+      console.error('[Contacts Sync] Sync failed:', syncError);
+      return NextResponse.json(
+        {
+          error: syncError instanceof Error ? syncError.message : 'Sync failed',
+          status: syncStatus,
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('[Contacts Sync] Failed to start sync:', error);
+    // Check if it's an auth error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isAuthError = errorMessage.includes('Unauthorized') || errorMessage.includes('authentication');
     return NextResponse.json(
-      { error: `Failed to start sync: ${error}` },
-      { status: 500 }
+      { error: errorMessage },
+      { status: isAuthError ? 401 : 500 }
     );
   }
 }
