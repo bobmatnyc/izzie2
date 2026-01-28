@@ -250,6 +250,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
 
     // 7. Parse structured response
     let structuredResponse: StructuredLLMResponse;
+    let telegramResponseText: string; // What to send to Telegram user
 
     try {
       // Strip markdown code blocks if present
@@ -265,11 +266,24 @@ ${RESPONSE_FORMAT_INSTRUCTION}
         currentTask: parsed.currentTask || null,
         memoriesToSave: parsed.memoriesToSave,
       };
+      telegramResponseText = structuredResponse.response;
+      console.log(`${LOG_PREFIX} Parsed structured response, sending only response field to Telegram`);
     } catch {
-      // Fallback: treat entire response as conversational response
-      console.log(`${LOG_PREFIX} LLM did not return JSON, using full content`);
+      console.log(`${LOG_PREFIX} LLM did not return JSON, trying to extract response field`);
+
+      // Try to extract just the "response" field from raw JSON if possible
+      try {
+        const rawParsed = JSON.parse(aiResponse.content);
+        telegramResponseText = rawParsed.response || aiResponse.content;
+        console.log(`${LOG_PREFIX} Extracted response field from raw JSON`);
+      } catch {
+        // Ultimate fallback: use full content
+        telegramResponseText = aiResponse.content;
+        console.log(`${LOG_PREFIX} Using full content as fallback`);
+      }
+
       structuredResponse = {
-        response: aiResponse.content,
+        response: telegramResponseText,
         currentTask: null,
       };
     }
@@ -324,7 +338,7 @@ ${RESPONSE_FORMAT_INSTRUCTION}
 
     // 10. Send reply via Telegram
     console.log(`${LOG_PREFIX} [TRACE] Sending to chatId: ${telegramChatId} (type: ${typeof telegramChatId}, toString: ${telegramChatId.toString()})`);
-    await bot.send(telegramChatId.toString(), structuredResponse.response, undefined, messageThreadId);
+    await bot.send(telegramChatId.toString(), telegramResponseText, undefined, messageThreadId);
 
     console.log(`${LOG_PREFIX} Reply sent successfully`);
   } catch (error) {
