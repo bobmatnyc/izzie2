@@ -26,6 +26,8 @@ export class OnboardingDataService implements IOnboardingDataService {
   // Processing stats
   private emailsProcessed = 0;
   private totalEmails = 0;
+  private eventsProcessed = 0; // Calendar events processed
+  private totalEvents = 0; // Total calendar events
   private currentDay = '';
   private currentBatch = 0;
   private totalBatches = 0;
@@ -40,6 +42,10 @@ export class OnboardingDataService implements IOnboardingDataService {
 
   setTotalEmails(count: number): void {
     this.totalEmails = count;
+  }
+
+  setTotalEvents(count: number): void {
+    this.totalEvents = count;
   }
 
   setCurrentDay(day: string): void {
@@ -105,6 +111,56 @@ export class OnboardingDataService implements IOnboardingDataService {
     this.notifyDataChange();
   }
 
+  recordCalendarEvent(
+    event: { id: string; date: Date },
+    entities: Entity[],
+    relationships: InlineRelationship[]
+  ): void {
+    this.eventsProcessed++;
+
+    // Track entities (similar to email but use event ID)
+    for (const entity of entities) {
+      const key = `${entity.type}:${entity.normalized}`;
+      const existing = this.entities.get(key);
+
+      if (existing) {
+        existing.emailIds.push(event.id); // Reuse emailIds for source tracking
+        existing.lastSeen = event.date;
+        existing.occurrenceCount++;
+      } else {
+        this.entities.set(key, {
+          ...entity,
+          emailIds: [event.id],
+          firstSeen: event.date,
+          lastSeen: event.date,
+          occurrenceCount: 1,
+        });
+      }
+    }
+
+    // Track relationships
+    for (const rel of relationships) {
+      const key = `${rel.fromType}:${rel.fromValue}|${rel.relationshipType}|${rel.toType}:${rel.toValue}`;
+      const existing = this.relationships.get(key);
+
+      if (existing) {
+        existing.sourceEmailIds.push(event.id); // Reuse for source tracking
+        existing.lastSeen = event.date;
+        existing.occurrenceCount++;
+      } else {
+        this.relationships.set(key, {
+          ...rel,
+          sourceEmailIds: [event.id],
+          firstSeen: event.date,
+          lastSeen: event.date,
+          occurrenceCount: 1,
+        });
+      }
+    }
+
+    this.notifyDataChange();
+  }
+
   getEntities(): DiscoveredEntity[] {
     return Array.from(this.entities.values());
   }
@@ -120,6 +176,8 @@ export class OnboardingDataService implements IOnboardingDataService {
       currentDay: this.currentDay,
       emailsProcessed: this.emailsProcessed,
       totalEmails: this.totalEmails,
+      eventsProcessed: this.eventsProcessed,
+      totalEvents: this.totalEvents,
       entitiesFound: this.entities.size,
       relationshipsFound: this.relationships.size,
       currentBatch: this.currentBatch,
@@ -188,6 +246,8 @@ export class OnboardingDataService implements IOnboardingDataService {
   reset(): void {
     this.emailsProcessed = 0;
     this.totalEmails = 0;
+    this.eventsProcessed = 0;
+    this.totalEvents = 0;
     this.currentDay = '';
     this.currentBatch = 0;
     this.totalBatches = 0;

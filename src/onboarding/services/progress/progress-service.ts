@@ -116,6 +116,10 @@ export class ProgressService {
     this.dataService.setTotalEmails(count);
   }
 
+  setTotalEvents(count: number): void {
+    this.dataService.setTotalEvents(count);
+  }
+
   setCurrentDay(day: string): void {
     this.dataService.setCurrentDay(day);
     this.emitProgress();
@@ -165,6 +169,49 @@ export class ProgressService {
         type: 'relationship',
         relationship: rel,
         sourceEmail: email.id,
+      });
+    }
+
+    // Emit progress
+    this.emitProgress();
+  }
+
+  recordCalendarEvent(
+    event: {
+      id: string;
+      summary: string;
+      start: string;
+      end: string;
+      attendeeCount: number;
+      location?: string;
+      date: Date;
+    },
+    entities: Entity[],
+    relationships: InlineRelationship[]
+  ): void {
+    this.dataService.recordCalendarEvent(event, entities, relationships);
+
+    // Emit calendar event
+    this.sseService.broadcast({
+      type: 'calendar_event',
+      event: {
+        id: event.id,
+        summary: event.summary,
+        start: event.start,
+        end: event.end,
+        attendeeCount: event.attendeeCount,
+        location: event.location,
+      },
+      entities,
+      relationships,
+    });
+
+    // Emit relationship events
+    for (const rel of relationships) {
+      this.sseService.broadcast({
+        type: 'relationship',
+        relationship: rel,
+        sourceEmail: event.id, // Reuse sourceEmail field for event source
       });
     }
 

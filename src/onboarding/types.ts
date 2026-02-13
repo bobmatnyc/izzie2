@@ -22,6 +22,8 @@ export interface ProgressUpdate {
   currentDay: string; // ISO date string
   emailsProcessed: number;
   totalEmails: number;
+  eventsProcessed: number; // Calendar events processed
+  totalEvents: number; // Total calendar events to process
   entitiesFound: number;
   relationshipsFound: number;
   currentBatch: number;
@@ -45,6 +47,23 @@ export interface EmailProcessedEvent {
   relationships: InlineRelationship[];
   isSpam: boolean;
   spamScore: number;
+}
+
+/**
+ * Calendar event processed event sent via SSE
+ */
+export interface CalendarEventProcessedEvent {
+  type: 'calendar_event';
+  event: {
+    id: string;
+    summary: string;
+    start: string;
+    end: string;
+    attendeeCount: number;
+    location?: string;
+  };
+  entities: Entity[];
+  relationships: InlineRelationship[];
 }
 
 /**
@@ -144,6 +163,7 @@ export interface PingEvent {
 export type SSEEvent =
   | ProgressUpdate
   | EmailProcessedEvent
+  | CalendarEventProcessedEvent
   | RelationshipEvent
   | ErrorEvent
   | CompleteEvent
@@ -208,6 +228,7 @@ export interface DiscoveredEntity extends Entity {
 export interface DayResult {
   date: string; // ISO date string (YYYY-MM-DD)
   emailsProcessed: number;
+  eventsProcessed?: number; // Calendar events processed (optional for backward compatibility)
   entities: Entity[];
   relationships: InlineRelationship[];
   errors: string[];
