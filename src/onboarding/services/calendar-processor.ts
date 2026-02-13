@@ -73,7 +73,7 @@ export class CalendarProcessorService {
     const result: DayResult = {
       date: day,
       emailsProcessed: 0, // Not processing emails here
-      eventsProcessed: 0, // Track calendar events
+      eventsProcessed: 0 as number, // Track calendar events
       entities: [],
       relationships: [],
       errors: [],
