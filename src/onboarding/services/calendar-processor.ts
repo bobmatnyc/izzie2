@@ -216,31 +216,27 @@ export class CalendarProcessorService {
       const attendee = otherAttendees[0];
       const attendeeName = attendee.displayName || attendee.email;
 
-      // If user is organizer → user MANAGES attendee (or REPORTS_TO if inverted)
-      // If attendee is organizer → attendee MANAGES user
+      // If user is organizer → user WORKS_WITH attendee
+      // If attendee is organizer → attendee WORKS_WITH user
       if (event.organizer?.email === this.userEmail) {
         relationships.push({
-          from: userDisplayName,
-          to: attendeeName,
-          type: 'WORKS_WITH',
-          metadata: {
-            source: 'calendar',
-            pattern: 'recurring_1on1',
-            eventId: event.id,
-            meetingTitle: event.summary,
-          },
+          fromType: 'person',
+          fromValue: userDisplayName,
+          toType: 'person',
+          toValue: attendeeName,
+          relationshipType: 'WORKS_WITH',
+          confidence: 0.7,
+          evidence: `Recurring 1:1 meeting "${event.summary || 'untitled'}" organized by ${userDisplayName}`,
         });
       } else if (event.organizer?.email === attendee.email) {
         relationships.push({
-          from: attendeeName,
-          to: userDisplayName,
-          type: 'WORKS_WITH',
-          metadata: {
-            source: 'calendar',
-            pattern: 'recurring_1on1',
-            eventId: event.id,
-            meetingTitle: event.summary,
-          },
+          fromType: 'person',
+          fromValue: attendeeName,
+          toType: 'person',
+          toValue: userDisplayName,
+          relationshipType: 'WORKS_WITH',
+          confidence: 0.7,
+          evidence: `Recurring 1:1 meeting "${event.summary || 'untitled'}" organized by ${attendeeName}`,
         });
       }
     }
@@ -253,29 +249,25 @@ export class CalendarProcessorService {
       for (const attendee of otherAttendees) {
         const attendeeName = attendee.displayName || attendee.email;
         relationships.push({
-          from: attendeeName,
-          to: projectName,
-          type: 'PARTICIPATES_IN',
-          metadata: {
-            source: 'calendar',
-            pattern: 'team_meeting',
-            eventId: event.id,
-            attendeeCount: otherAttendees.length + 1, // +1 for user
-          },
+          fromType: 'person',
+          fromValue: attendeeName,
+          toType: 'project',
+          toValue: projectName,
+          relationshipType: 'PARTICIPATES_IN',
+          confidence: 0.6,
+          evidence: `Team meeting "${event.summary || 'untitled'}" with ${otherAttendees.length + 1} attendees`,
         });
       }
 
       // User also participates
       relationships.push({
-        from: userDisplayName,
-        to: projectName,
-        type: 'PARTICIPATES_IN',
-        metadata: {
-          source: 'calendar',
-          pattern: 'team_meeting',
-          eventId: event.id,
-          attendeeCount: otherAttendees.length + 1,
-        },
+        fromType: 'person',
+        fromValue: userDisplayName,
+        toType: 'project',
+        toValue: projectName,
+        relationshipType: 'PARTICIPATES_IN',
+        confidence: 0.6,
+        evidence: `Team meeting "${event.summary || 'untitled'}" with ${otherAttendees.length + 1} attendees`,
       });
     }
 
