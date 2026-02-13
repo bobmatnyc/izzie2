@@ -118,7 +118,7 @@ export class CalendarProcessorService {
             relationships
           );
 
-          result.eventsProcessed++;
+          result.eventsProcessed = (result.eventsProcessed || 0) + 1;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`${LOG_PREFIX} Error processing event ${event.id}:`, error);
