@@ -25,7 +25,7 @@ export interface UnifiedProcessorConfig extends ProcessingConfig {
 
 export class UnifiedProcessorService {
   private emailProcessor: EmailProcessorService;
-  private calendarProcessor: CalendarProcessorService;
+  private calendarProcessor?: CalendarProcessorService;
   private progress: ProgressService;
   private database: OnboardingDatabase | null = null;
   private config: UnifiedProcessorConfig;
