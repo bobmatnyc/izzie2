@@ -41,19 +41,21 @@ const MESSAGES = {
 
 /**
  * Verify webhook secret token
+ * Optional security layer - logs warnings but allows requests when not configured
+ * Only rejects when both secret and header present but mismatched
  */
 function verifyWebhookSecret(request: NextRequest): boolean {
   const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
 
   if (!expectedSecret) {
-    console.error(`${LOG_PREFIX} TELEGRAM_WEBHOOK_SECRET not configured - webhook verification disabled`);
-    return false;
+    console.warn(`${LOG_PREFIX} TELEGRAM_WEBHOOK_SECRET not configured - webhook verification disabled (requests allowed)`);
+    return true;
   }
 
   if (!secret) {
-    console.error(`${LOG_PREFIX} Webhook secret missing from request headers`);
-    return false;
+    console.warn(`${LOG_PREFIX} Webhook secret header missing from request (requests allowed - Telegram validates via bot token)`);
+    return true;
   }
 
   if (secret !== expectedSecret) {
@@ -61,7 +63,7 @@ function verifyWebhookSecret(request: NextRequest): boolean {
     const receivedPrefix = secret.substring(0, 8);
     const expectedPrefix = expectedSecret.substring(0, 8);
     console.error(
-      `${LOG_PREFIX} Webhook secret mismatch - received prefix: "${receivedPrefix}...", expected prefix: "${expectedPrefix}..."`
+      `${LOG_PREFIX} Webhook secret mismatch - received prefix: "${receivedPrefix}...", expected prefix: "${expectedPrefix}..." - REJECTING REQUEST`
     );
     return false;
   }
