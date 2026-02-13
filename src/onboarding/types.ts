@@ -213,6 +213,7 @@ export interface ProcessingConfig {
   maxEmailsPerDay: number; // Max emails per day to process (default: 100)
   startDate?: Date; // Start date for processing (default: 1 year ago)
   endDate?: Date; // End date for processing (default: today)
+  userId?: string; // User ID for database persistence (optional for backward compatibility)
 }
 
 export const DEFAULT_PROCESSING_CONFIG: ProcessingConfig = {

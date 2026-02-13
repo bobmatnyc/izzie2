@@ -17,6 +17,7 @@ import {
   getAutoTaskSyncService,
   resetAutoTaskSyncService,
 } from './tasks-sync';
+import { OnboardingDatabase } from './database';
 import type { Email } from '@/lib/google/types';
 import type { Entity } from '@/lib/extraction/types';
 import type { ProcessingConfig, DEFAULT_PROCESSING_CONFIG, DayResult } from '../types';
@@ -26,6 +27,7 @@ const LOG_PREFIX = '[EmailProcessor]';
 export interface EmailProcessorConfig extends ProcessingConfig {
   autoSyncTasks?: boolean; // Auto-sync action_items to Google Tasks (default: true)
   taskListName?: string; // Name of the task list for auto-sync
+  userId?: string; // User ID for database operations (required)
 }
 
 export class EmailProcessorService {
@@ -35,6 +37,7 @@ export class EmailProcessorService {
   private progress: ProgressService;
   private config: EmailProcessorConfig;
   private autoTaskSync: AutoTaskSyncService | null = null;
+  private database: OnboardingDatabase | null = null;
 
   constructor(
     auth: Auth.OAuth2Client,
@@ -52,7 +55,14 @@ export class EmailProcessorService {
       endDate: config.endDate,
       autoSyncTasks: config.autoSyncTasks ?? true, // Enabled by default
       taskListName: config.taskListName,
+      userId: config.userId,
     };
+
+    // Initialize database if userId provided
+    if (this.config.userId) {
+      this.database = new OnboardingDatabase(this.config.userId);
+      console.log(`${LOG_PREFIX} Database persistence enabled for user ${this.config.userId}`);
+    }
 
     // Initialize auto-sync if enabled
     if (this.config.autoSyncTasks) {
@@ -143,6 +153,21 @@ export class EmailProcessorService {
   private async processDayEmails(day: string, signal?: AbortSignal): Promise<DayResult> {
     console.log(`${LOG_PREFIX} Processing day: ${day}`);
 
+    // Check if day already processed (idempotency)
+    if (this.database) {
+      const alreadyProcessed = await this.database.isDayProcessed(day, 'email');
+      if (alreadyProcessed) {
+        console.log(`${LOG_PREFIX} Day ${day} already processed, skipping`);
+        return {
+          date: day,
+          emailsProcessed: 0,
+          entities: [],
+          relationships: [],
+          errors: [],
+        };
+      }
+    }
+
     const dayStart = new Date(`${day}T00:00:00.000Z`);
     const dayEnd = new Date(`${day}T23:59:59.999Z`);
 
@@ -228,6 +253,34 @@ export class EmailProcessorService {
       `${result.entities.length} entities, ` +
       `${result.relationships.length} relationships`
     );
+
+    // Persist entities and relationships to database
+    if (this.database && result.entities.length > 0) {
+      try {
+        // Save entities (sourceId is the day for batch tracking)
+        await this.database.saveEntities(result.entities, `day:${day}`);
+
+        // Save relationships (convert inline format to database format)
+        if (result.relationships.length > 0) {
+          await this.database.saveRelationships(result.relationships, `day:${day}`);
+        }
+
+        // Mark day as processed
+        await this.database.markDayProcessed(
+          day,
+          'email',
+          result.emailsProcessed
+        );
+
+        console.log(`${LOG_PREFIX} Day ${day} persisted to database`);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} Failed to persist day ${day}:`, error);
+        result.errors.push(
+          `Database persistence failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+        // Don't fail the whole day processing, just log the error
+      }
+    }
 
     return result;
   }

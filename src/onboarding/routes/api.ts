@@ -12,14 +12,16 @@ import { syncEntitiesWithProgress as syncTasksWithProgress } from '../services/t
 import { getFeedbackService } from '../services/feedback';
 import { getOntologyService } from '../services/ontology';
 import { getAuthenticatedClient, isAuthenticated } from './oauth';
+import { createOnboardingDatabase, OnboardingDatabase } from '../services/database';
 import type { ProcessingConfig } from '../types';
 
 const LOG_PREFIX = '[API]';
 
 const router = Router();
 
-// Current processor instance
+// Current processor instance and database
 let processor: EmailProcessorService | null = null;
+let database: OnboardingDatabase | null = null;
 
 /**
  * Middleware to require authentication
@@ -96,7 +98,17 @@ router.post('/start', requireAuth, async (req: Request, res: Response) => {
     maxEmailsPerDay: req.body.maxEmailsPerDay,
     startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
     endDate: req.body.endDate ? new Date(req.body.endDate) : undefined,
+    userId: req.body.userId, // Optional userId for database persistence
   };
+
+  // Create database instance if userId provided
+  if (config.userId) {
+    database = createOnboardingDatabase(config.userId);
+    console.log(`${LOG_PREFIX} Database persistence enabled for user ${config.userId}`);
+  } else {
+    database = null;
+    console.log(`${LOG_PREFIX} Running in memory-only mode (no userId provided)`);
+  }
 
   // Create processor
   processor = createEmailProcessor(client, config);
@@ -207,14 +219,30 @@ router.post('/stop', requireAuth, (_req: Request, res: Response) => {
 
 /**
  * POST /api/flush
- * Flush all data and reset
+ * Flush all data and reset (both memory and database)
  */
-router.post('/flush', (_req: Request, res: Response) => {
+router.post('/flush', async (_req: Request, res: Response) => {
   console.log(`${LOG_PREFIX} Flush requested`);
 
   const progress = getProgressService();
   progress.flush();
   processor = null;
+
+  // Also flush database if connected
+  if (database) {
+    try {
+      await database.flushAll();
+      console.log(`${LOG_PREFIX} Database flushed`);
+      database = null;
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Failed to flush database:`, error);
+      res.status(500).json({
+        error: 'Failed to flush database',
+        details: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+  }
 
   res.json({
     success: true,
@@ -270,6 +298,40 @@ router.get('/relationships', (_req: Request, res: Response) => {
     count: relationships.length,
     relationships,
   });
+});
+
+/**
+ * GET /api/database/stats
+ * Get database statistics (requires userId in query or database instance)
+ */
+router.get('/database/stats', async (req: Request, res: Response) => {
+  console.log(`${LOG_PREFIX} Database stats requested`);
+
+  // Use existing database instance or create new one from query param
+  let statsDatabase = database;
+  const userId = req.query.userId as string | undefined;
+
+  if (!statsDatabase && userId) {
+    statsDatabase = createOnboardingDatabase(userId);
+  }
+
+  if (!statsDatabase) {
+    res.status(400).json({
+      error: 'No database connection available. Provide userId or start processing with userId.',
+    });
+    return;
+  }
+
+  try {
+    const stats = await statsDatabase.getProcessingStats();
+    res.json(stats);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Failed to get database stats:`, error);
+    res.status(500).json({
+      error: 'Failed to get database statistics',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
 });
 
 /**
