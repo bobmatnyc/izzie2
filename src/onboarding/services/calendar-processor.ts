@@ -160,11 +160,10 @@ export class CalendarProcessorService {
       entities.push({
         type: 'person',
         value: event.organizer.displayName || event.organizer.email,
-        metadata: {
-          email: event.organizer.email,
-          source: 'calendar',
-          role: 'organizer',
-        },
+        normalized: event.organizer.displayName || event.organizer.email,
+        confidence: 1.0,
+        source: 'metadata',
+        context: `Organizer of "${event.summary || 'untitled'}" (${event.organizer.email})`,
       });
     }
 
@@ -176,12 +175,10 @@ export class CalendarProcessorService {
       entities.push({
         type: 'person',
         value: attendee.displayName || attendee.email,
-        metadata: {
-          email: attendee.email,
-          source: 'calendar',
-          role: 'attendee',
-          responseStatus: attendee.responseStatus,
-        },
+        normalized: attendee.displayName || attendee.email,
+        confidence: 1.0,
+        source: 'metadata',
+        context: `Attendee of "${event.summary || 'untitled'}" (${attendee.email}, ${attendee.responseStatus || 'status unknown'})`,
       });
     }
 
@@ -190,9 +187,10 @@ export class CalendarProcessorService {
       entities.push({
         type: 'location',
         value: event.location,
-        metadata: {
-          source: 'calendar',
-        },
+        normalized: event.location,
+        confidence: 1.0,
+        source: 'metadata',
+        context: `Location of "${event.summary || 'untitled'}"`,
       });
     }
 
