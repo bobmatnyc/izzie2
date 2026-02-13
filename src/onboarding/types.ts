@@ -123,6 +123,22 @@ export interface FeedbackEvent {
 }
 
 /**
+ * Connected event sent when SSE client first connects
+ */
+export interface ConnectedEvent {
+  type: 'connected';
+  userId?: string;
+}
+
+/**
+ * Ping event sent periodically to keep SSE connection alive
+ */
+export interface PingEvent {
+  type: 'ping';
+  timestamp?: number;
+}
+
+/**
  * Union type for all SSE events
  */
 export type SSEEvent =
@@ -134,7 +150,9 @@ export type SSEEvent =
   | StateChangeEvent
   | ContactSyncEvent
   | TaskSyncEvent
-  | FeedbackEvent;
+  | FeedbackEvent
+  | ConnectedEvent
+  | PingEvent;
 
 /**
  * Processing summary after completion
