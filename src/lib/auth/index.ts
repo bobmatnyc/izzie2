@@ -346,14 +346,30 @@ export async function getSession(request: Request): Promise<AuthSession | null> 
 }
 
 /**
+ * Custom error class for authentication failures
+ * Allows distinguishing auth errors from other errors
+ */
+export class AuthenticationError extends Error {
+  public readonly statusCode: number;
+
+  constructor(message: string, statusCode: 401 | 403 = 401) {
+    super(message);
+    this.name = 'AuthenticationError';
+    this.statusCode = statusCode;
+    // Maintains proper stack trace for where our error was thrown
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+/**
  * Helper to require authentication
- * Throws error if not authenticated
+ * Throws AuthenticationError if not authenticated
  */
 export async function requireAuth(request: Request): Promise<AuthSession> {
   const session = await getSession(request);
 
   if (!session) {
-    throw new Error('Unauthorized - authentication required');
+    throw new AuthenticationError('Authentication required', 401);
   }
 
   return session;

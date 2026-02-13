@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, AuthenticationError } from '@/lib/auth';
 import { fetchAllTasks } from '@/lib/google/tasks';
 import { inngest } from '@/lib/events';
 import type { TaskContentExtractedPayload } from '@/lib/events/types';
@@ -61,6 +61,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Tasks Sync] Failed to start sync:', error);
+
+    // Handle authentication errors with proper 401/403 status codes
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        {
+          error: 'Unauthorized',
+          message: error.message,
+        },
+        { status: error.statusCode }
+      );
+    }
+
     return NextResponse.json(
       { error: `Failed to start sync: ${error}` },
       { status: 500 }

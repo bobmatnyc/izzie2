@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, AuthenticationError } from '@/lib/auth';
 import { z } from 'zod';
 import { createTask, listTasks } from '@/agents/base/task-manager';
 import { inngest } from '@/lib/events';
@@ -87,6 +87,17 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`${LOG_PREFIX} Failed to create research task:`, error);
 
+    // Handle authentication errors with proper 401/403 status codes
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        {
+          error: 'Unauthorized',
+          message: error.message,
+        },
+        { status: error.statusCode }
+      );
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -162,6 +173,17 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} Failed to list research tasks:`, error);
+
+    // Handle authentication errors with proper 401/403 status codes
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        {
+          error: 'Unauthorized',
+          message: error.message,
+        },
+        { status: error.statusCode }
+      );
+    }
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
