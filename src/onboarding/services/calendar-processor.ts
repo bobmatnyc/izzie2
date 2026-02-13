@@ -200,7 +200,7 @@ export class CalendarProcessorService {
   /**
    * Infer relationships from calendar event patterns
    * - Recurring 1:1 meeting → WORKS_WITH or REPORTS_TO
-   * - Team meeting (3+ attendees) → PARTICIPATES_IN
+   * - Team meeting (3+ attendees) → WORKS_ON
    */
   private inferRelationshipsFromEvent(event: CalendarEvent): InlineRelationship[] {
     const relationships: InlineRelationship[] = [];
@@ -245,7 +245,7 @@ export class CalendarProcessorService {
     if (otherAttendees.length >= 2) {
       const projectName = event.summary || 'Unknown Project';
 
-      // Create PARTICIPATES_IN relationships for all attendees
+      // Create WORKS_ON relationships for all attendees
       for (const attendee of otherAttendees) {
         const attendeeName = attendee.displayName || attendee.email;
         relationships.push({
@@ -253,19 +253,19 @@ export class CalendarProcessorService {
           fromValue: attendeeName,
           toType: 'project',
           toValue: projectName,
-          relationshipType: 'PARTICIPATES_IN',
+          relationshipType: 'WORKS_ON',
           confidence: 0.6,
           evidence: `Team meeting "${event.summary || 'untitled'}" with ${otherAttendees.length + 1} attendees`,
         });
       }
 
-      // User also participates
+      // User also works on project
       relationships.push({
         fromType: 'person',
         fromValue: userDisplayName,
         toType: 'project',
         toValue: projectName,
-        relationshipType: 'PARTICIPATES_IN',
+        relationshipType: 'WORKS_ON',
         confidence: 0.6,
         evidence: `Team meeting "${event.summary || 'untitled'}" with ${otherAttendees.length + 1} attendees`,
       });
