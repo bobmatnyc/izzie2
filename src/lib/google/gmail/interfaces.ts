@@ -38,6 +38,12 @@ export interface IGmailLabelService {
   /** Find label by name (case-insensitive) */
   findLabelByName(labelName: string): Promise<GmailLabel | null>;
 
+  /** Create a new Gmail label */
+  createLabel(labelName: string): Promise<GmailLabel>;
+
+  /** Get a label by name, or create it if it doesn't exist */
+  getOrCreateLabel(labelName: string): Promise<GmailLabel>;
+
   /** Apply a label to an email */
   applyLabel(id: string, labelId: string): Promise<void>;
 
@@ -125,7 +131,8 @@ export interface IGmailFilterService {
  * Combined Gmail service interface (facade)
  */
 export interface IGmailService
-  extends IGmailMessageService,
+  extends
+    IGmailMessageService,
     IGmailLabelService,
     IGmailSyncService,
     IGmailComposeService,

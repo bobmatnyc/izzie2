@@ -693,19 +693,9 @@ export const createEmailFilterTool = {
       const addLabelIds: string[] = [];
       const removeLabelIds: string[] = [];
 
-      // Resolve label name to ID if specified
+      // Resolve label name to ID if specified (auto-create if doesn't exist)
       if (validated.applyLabel) {
-        const label = await gmailService.findLabelByName(validated.applyLabel);
-        if (!label) {
-          const labels = await gmailService.getLabels();
-          const userLabels = labels
-            .filter((l) => l.type === 'user')
-            .map((l) => l.name)
-            .join(', ');
-          return {
-            message: `Label "${validated.applyLabel}" not found. Available labels: ${userLabels || 'None'}`,
-          };
-        }
+        const label = await gmailService.getOrCreateLabel(validated.applyLabel);
         addLabelIds.push(label.id);
       }
 

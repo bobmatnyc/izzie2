@@ -37,11 +37,46 @@ export class GmailLabelService implements IGmailLabelService {
    */
   async findLabelByName(labelName: string): Promise<GmailLabel | null> {
     const labels = await this.getLabels();
-    return (
-      labels.find(
-        (label) => label.name.toLowerCase() === labelName.toLowerCase()
-      ) || null
-    );
+    return labels.find((label) => label.name.toLowerCase() === labelName.toLowerCase()) || null;
+  }
+
+  /**
+   * Create a new Gmail label
+   */
+  async createLabel(labelName: string): Promise<GmailLabel> {
+    try {
+      const response = await this.gmail.users.labels.create({
+        userId: 'me',
+        requestBody: {
+          name: labelName,
+          labelListVisibility: 'labelShow',
+          messageListVisibility: 'show',
+        },
+      });
+
+      const label = response.data;
+      return {
+        id: label.id || '',
+        name: label.name || '',
+        type: label.type === 'system' ? 'system' : 'user',
+        messageListVisibility: label.messageListVisibility || null,
+        labelListVisibility: label.labelListVisibility || null,
+      };
+    } catch (error) {
+      console.error(`[Gmail] Failed to create label "${labelName}":`, error);
+      throw new Error(`Failed to create label: ${error}`);
+    }
+  }
+
+  /**
+   * Get a label by name, or create it if it doesn't exist
+   */
+  async getOrCreateLabel(labelName: string): Promise<GmailLabel> {
+    const existingLabel = await this.findLabelByName(labelName);
+    if (existingLabel) {
+      return existingLabel;
+    }
+    return this.createLabel(labelName);
   }
 
   /**

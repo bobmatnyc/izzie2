@@ -68,6 +68,14 @@ export class GmailService implements IGmailService {
     return this.labelService.findLabelByName(labelName);
   }
 
+  async createLabel(labelName: string): Promise<GmailLabel> {
+    return this.labelService.createLabel(labelName);
+  }
+
+  async getOrCreateLabel(labelName: string): Promise<GmailLabel> {
+    return this.labelService.getOrCreateLabel(labelName);
+  }
+
   async applyLabel(id: string, labelId: string): Promise<void> {
     return this.labelService.applyLabel(id, labelId);
   }
