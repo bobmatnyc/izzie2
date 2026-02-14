@@ -78,6 +78,54 @@ export async function POST(request: NextRequest) {
     // Count total Google accounts for this user
     const totalAccounts = userAccountsWithMeta.length;
 
+    // Revoke Google OAuth grant BEFORE deleting tokens
+    // This ensures the user gets a fresh consent screen with ALL scopes
+    if (accountToDelete) {
+      // Fetch the account to get the accessToken for revocation
+      const accountRecord = await db
+        .select()
+        .from(accounts)
+        .where(eq(accounts.id, accountToDelete.accountId))
+        .limit(1);
+
+      const accessToken = accountRecord[0]?.accessToken;
+
+      if (accessToken) {
+        try {
+          console.log(`${LOG_PREFIX} Revoking OAuth grant for account:`, accountToDelete.accountId);
+
+          const revokeResponse = await fetch('https://oauth2.googleapis.com/revoke', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              token: accessToken,
+            }),
+          });
+
+          if (revokeResponse.ok) {
+            console.log(`${LOG_PREFIX} Successfully revoked OAuth grant for account:`, accountToDelete.accountId);
+          } else {
+            console.warn(
+              `${LOG_PREFIX} Failed to revoke OAuth grant (status: ${revokeResponse.status}). Continuing with reconnect.`,
+              accountToDelete.accountId
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `${LOG_PREFIX} Error revoking OAuth grant. Continuing with reconnect.`,
+            error instanceof Error ? error.message : error
+          );
+        }
+      } else {
+        console.warn(
+          `${LOG_PREFIX} No access token found for account. Skipping revocation.`,
+          accountToDelete.accountId
+        );
+      }
+    }
+
     // If this is the user's ONLY account, we can't delete it before reconnect
     // because they'd be left with no auth. Instead, just redirect to OAuth
     // with link=true - Better Auth will update the existing account.
