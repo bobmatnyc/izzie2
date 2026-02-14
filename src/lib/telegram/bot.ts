@@ -83,6 +83,22 @@ export class TelegramBot {
   }
 
   /**
+   * Send a chat action (e.g., typing indicator)
+   * The action will be automatically cancelled after 5 seconds, or when a message is sent
+   */
+  async sendChatAction(
+    chatId: number | string,
+    action: 'typing' | 'upload_photo' | 'record_video' | 'upload_voice' | 'upload_document' | 'choose_sticker' | 'find_location' | 'record_video_note' | 'upload_video_note',
+    messageThreadId?: number
+  ): Promise<boolean> {
+    return this.request<boolean>('sendChatAction', {
+      chat_id: chatId,
+      action,
+      message_thread_id: messageThreadId,
+    });
+  }
+
+  /**
    * Edit the text of an existing message
    */
   async editMessageText(params: EditMessageTextParams): Promise<TelegramMessage | boolean> {

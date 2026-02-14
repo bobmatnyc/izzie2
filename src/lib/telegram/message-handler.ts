@@ -189,25 +189,22 @@ export async function processAndReply(
     return;
   }
 
-  // Send initial placeholder message immediately
-  let placeholderMessage: Awaited<ReturnType<typeof bot.send>> | null = null;
+  // Start typing indicator (expires every 5 seconds, so refresh every 4 seconds)
+  let typingInterval: NodeJS.Timeout | null = null;
   try {
-    placeholderMessage = await bot.send(
-      telegramChatId.toString(),
-      'Thinking...',
-      undefined,
-      messageThreadId
-    );
-    console.log(`${LOG_PREFIX} Sent placeholder message ${placeholderMessage.message_id}`);
+    await bot.sendChatAction(telegramChatId.toString(), 'typing', messageThreadId);
+    typingInterval = setInterval(async () => {
+      try {
+        await bot.sendChatAction(telegramChatId.toString(), 'typing', messageThreadId);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} Failed to send typing indicator:`, error);
+      }
+    }, 4000); // Refresh every 4 seconds (expires at 5 seconds)
+    console.log(`${LOG_PREFIX} Started typing indicator for chat ${telegramChatId}`);
   } catch (error) {
-    console.error(`${LOG_PREFIX} Failed to send placeholder:`, error);
-    // Continue anyway - we'll just send final response without progress updates
+    console.error(`${LOG_PREFIX} Failed to start typing indicator:`, error);
+    // Continue anyway - we'll just send final response without typing indicator
   }
-
-  // Create debounced editor for progress updates
-  const editMessage = placeholderMessage
-    ? createDebouncedEditor(bot, telegramChatId.toString(), placeholderMessage.message_id)
-    : async () => {}; // No-op if placeholder failed
 
   try {
     console.log(`${LOG_PREFIX} Processing message from user ${userId}, chat ${telegramChatId}`);
@@ -362,15 +359,9 @@ ${RESPONSE_FORMAT_INSTRUCTION}
 
           console.log(`${LOG_PREFIX} Executing tool: ${toolName}`);
 
-          // Update progress message when tool execution starts
-          const initialProgressMsg = formatProgressMessage(toolName);
-          await editMessage(initialProgressMsg);
-
-          // Create progress callback for tools that support it
+          // Create progress callback for tools that support it (typing indicator shows activity)
           const onProgress: ProgressCallback = (progress) => {
-            const progressMsg = formatProgressMessage(toolName, progress.step, progress.progress);
-            // Fire and forget - don't await to avoid blocking tool execution
-            editMessage(progressMsg);
+            console.log(`${LOG_PREFIX} Tool progress: ${progress.step} (${progress.progress}%)`);
           };
 
           // Execute the tool
@@ -552,36 +543,28 @@ ${RESPONSE_FORMAT_INSTRUCTION}
       console.error(`${LOG_PREFIX} Failed to track usage:`, err);
     });
 
-    // 11. Send/edit final reply via Telegram
-    console.log(`${LOG_PREFIX} [TRACE] Final response to chatId: ${telegramChatId}`);
-
-    if (placeholderMessage) {
-      // Edit the placeholder message with the final response
-      try {
-        await bot.edit(telegramChatId.toString(), placeholderMessage.message_id, telegramResponseText);
-        console.log(`${LOG_PREFIX} Final reply edited successfully`);
-      } catch (editError) {
-        // If edit fails (e.g., content unchanged), send as new message
-        console.warn(`${LOG_PREFIX} Failed to edit message, sending as new:`, (editError as Error).message);
-        await bot.send(telegramChatId.toString(), telegramResponseText, undefined, messageThreadId);
-      }
-    } else {
-      // No placeholder, send as new message
-      await bot.send(telegramChatId.toString(), telegramResponseText, undefined, messageThreadId);
+    // 11. Clear typing indicator and send final reply via Telegram
+    if (typingInterval) {
+      clearInterval(typingInterval);
+      console.log(`${LOG_PREFIX} Cleared typing indicator`);
     }
 
+    console.log(`${LOG_PREFIX} [TRACE] Final response to chatId: ${telegramChatId}`);
+    await bot.send(telegramChatId.toString(), telegramResponseText, undefined, messageThreadId);
     console.log(`${LOG_PREFIX} Reply sent successfully`);
   } catch (error) {
     console.error(`${LOG_PREFIX} Error processing message:`, error);
 
+    // Clear typing indicator on error
+    if (typingInterval) {
+      clearInterval(typingInterval);
+      console.log(`${LOG_PREFIX} Cleared typing indicator due to error`);
+    }
+
     // Always send a message back to user even on error
     const errorMsg = "I'm sorry, I encountered an error processing your message. Please try again in a moment.";
     try {
-      if (placeholderMessage) {
-        await bot.edit(telegramChatId.toString(), placeholderMessage.message_id, errorMsg);
-      } else {
-        await bot.send(telegramChatId.toString(), errorMsg, undefined, messageThreadId);
-      }
+      await bot.send(telegramChatId.toString(), errorMsg, undefined, messageThreadId);
     } catch (sendError) {
       console.error(`${LOG_PREFIX} Failed to send error message:`, sendError);
     }
