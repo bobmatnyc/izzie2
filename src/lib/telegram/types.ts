@@ -67,6 +67,35 @@ export interface TelegramMessageEntity {
 }
 
 /**
+ * Telegram file object (shared by document, photo, video, etc.)
+ */
+export interface TelegramFile {
+  file_id: string;
+  file_unique_id: string;
+  file_size?: number;
+  file_name?: string;
+  mime_type?: string;
+}
+
+/**
+ * Telegram photo size object
+ */
+export interface TelegramPhotoSize {
+  file_id: string;
+  file_unique_id: string;
+  width: number;
+  height: number;
+  file_size?: number;
+}
+
+/**
+ * Telegram document object
+ */
+export interface TelegramDocument extends TelegramFile {
+  thumb?: TelegramPhotoSize;
+}
+
+/**
  * Telegram message object
  *
  * Note: message_id is bigint to handle large Telegram message IDs that exceed MAX_SAFE_INTEGER
@@ -86,6 +115,13 @@ export interface TelegramMessage {
   entities?: TelegramMessageEntity[];
   caption?: string;
   caption_entities?: TelegramMessageEntity[];
+
+  // File attachments
+  document?: TelegramDocument;
+  photo?: TelegramPhotoSize[];
+  video?: TelegramFile;
+  audio?: TelegramFile;
+  voice?: TelegramFile;
 }
 
 /**

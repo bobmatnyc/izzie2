@@ -1961,3 +1961,87 @@ export const MERGE_SUGGESTION_STATUS = {
 } as const;
 
 export type MergeSuggestionStatus = (typeof MERGE_SUGGESTION_STATUS)[keyof typeof MERGE_SUGGESTION_STATUS];
+
+/**
+ * File Attachments table - tracks bidirectional file transfers
+ * Stores metadata for files transferred between Telegram and Google Drive
+ */
+export const fileAttachments = pgTable(
+  'file_attachments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+
+    // Transfer direction
+    direction: text('direction').notNull(), // 'inbound' | 'outbound'
+
+    // File metadata
+    fileName: text('file_name').notNull(),
+    mimeType: text('mime_type').notNull(),
+    fileSize: integer('file_size').notNull(), // in bytes
+
+    // Google Drive references
+    driveFileId: text('drive_file_id'),
+    driveFolderId: text('drive_folder_id'), // Parent folder ID in Drive
+    driveWebViewLink: text('drive_web_view_link'),
+
+    // Telegram references
+    telegramFileId: text('telegram_file_id'),
+    telegramChatId: bigint('telegram_chat_id', { mode: 'bigint' }),
+    telegramMessageId: integer('telegram_message_id'),
+
+    // Session linking
+    chatSessionId: uuid('chat_session_id').references(() => chatSessions.id),
+
+    // Status tracking
+    status: text('status').notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
+    errorMessage: text('error_message'),
+
+    // Timestamps
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    completedAt: timestamp('completed_at'),
+
+    // Additional metadata
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  },
+  (table) => ({
+    userIdIdx: index('file_attachments_user_id_idx').on(table.userId),
+    directionIdx: index('file_attachments_direction_idx').on(table.direction),
+    statusIdx: index('file_attachments_status_idx').on(table.status),
+    chatSessionIdIdx: index('file_attachments_chat_session_id_idx').on(table.chatSessionId),
+    telegramChatIdIdx: index('file_attachments_telegram_chat_id_idx').on(table.telegramChatId),
+    telegramFileIdIdx: index('file_attachments_telegram_file_id_idx').on(table.telegramFileId),
+    driveFileIdIdx: index('file_attachments_drive_file_id_idx').on(table.driveFileId),
+    createdAtIdx: index('file_attachments_created_at_idx').on(table.createdAt),
+  })
+);
+
+/**
+ * Type exports for file attachments
+ */
+export type FileAttachment = typeof fileAttachments.$inferSelect;
+export type NewFileAttachment = typeof fileAttachments.$inferInsert;
+
+/**
+ * File attachment status constants
+ */
+export const FILE_ATTACHMENT_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+} as const;
+
+export type FileAttachmentStatus = (typeof FILE_ATTACHMENT_STATUS)[keyof typeof FILE_ATTACHMENT_STATUS];
+
+/**
+ * File attachment direction constants
+ */
+export const FILE_ATTACHMENT_DIRECTION = {
+  INBOUND: 'inbound',
+  OUTBOUND: 'outbound',
+} as const;
+
+export type FileAttachmentDirection = (typeof FILE_ATTACHMENT_DIRECTION)[keyof typeof FILE_ATTACHMENT_DIRECTION];

@@ -17,6 +17,7 @@ import { processAndReply } from '@/lib/telegram/message-handler';
 import { logAudit } from '@/lib/telegram/audit';
 import { checkRateLimit } from '@/lib/telegram/rate-limit';
 import { notifyAdmin } from '@/lib/telegram/admin-notify';
+import { handleDocumentMessage, handlePhotoMessage } from '@/lib/telegram/file-handler';
 
 // Configure json-bigint to parse integers as native BigInt
 const JSONbigParser = JSONbig({ useNativeBigInt: true });
@@ -132,16 +133,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const update: TelegramUpdate = JSONbigParser.parse(rawBody);
     console.log(`${LOG_PREFIX} Received update ${update.update_id}`);
 
-    // Only handle messages with text
+    // Get message (handle both text and file messages)
     const message = update.message;
-    if (!message?.text || !message.chat) {
-      console.log(`${LOG_PREFIX} Ignoring non-text or incomplete update`);
+    if (!message || !message.chat) {
+      console.log(`${LOG_PREFIX} Ignoring incomplete update (no message or chat)`);
       return NextResponse.json({ ok: true });
     }
 
     // chat.id is already bigint from JSONbigParser.parse
     const chatId = message.chat.id;
-    const text = message.text.trim();
     const username = message.from?.username;
     const telegramUserId = message.from?.id?.toString() || chatId.toString();
 
@@ -157,6 +157,47 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const bot = getTelegramBot();
+
+    // Handle file uploads (document, photo) for linked users
+    if (message.document || message.photo) {
+      // Check if user is linked
+      const userId = await getUserByTelegramChatId(chatId);
+
+      if (!userId) {
+        await safeBotSend(bot, chatId.toString(), MESSAGES.NOT_LINKED, 'not_linked_file');
+        console.log(`${LOG_PREFIX} Unlinked user attempted to upload file from ${chatId}`);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Handle document message
+      if (message.document) {
+        await handleDocumentMessage(
+          userId,
+          chatId,
+          Number(message.message_id),
+          message.document
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // Handle photo message
+      if (message.photo) {
+        await handlePhotoMessage(
+          userId,
+          chatId,
+          Number(message.message_id),
+          message.photo
+        );
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // For text messages, extract and process
+    const text = message.text?.trim();
+    if (!text) {
+      console.log(`${LOG_PREFIX} Ignoring message without text or file`);
+      return NextResponse.json({ ok: true });
+    }
 
     // Handle /start <code> command - verify link code
     const code = extractStartCode(text);
