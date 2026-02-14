@@ -51,6 +51,8 @@ export interface ScopeCheckResult {
   hasGmailModify: boolean;
   /** Whether user has Gmail send access */
   hasGmailSend: boolean;
+  /** Whether user has Gmail settings access */
+  hasGmailSettings: boolean;
   /** Whether user has Calendar access */
   hasCalendar: boolean;
   /** Whether user has Drive readonly access */
@@ -103,6 +105,7 @@ export async function checkUserScopes(
       hasTasksReadonlyOnly: false,
       hasGmailModify: false,
       hasGmailSend: false,
+      hasGmailSettings: false,
       hasCalendar: false,
       hasDriveReadonly: false,
       hasContactsReadonly: false,
@@ -131,12 +134,16 @@ export async function checkUserScopes(
   // Check Gmail scopes
   const hasGmailModify = hasScope(scopes, REQUIRED_SCOPES.gmailModify);
   const hasGmailSend = hasScope(scopes, REQUIRED_SCOPES.gmailSend);
+  const hasGmailSettings = hasScope(scopes, REQUIRED_SCOPES.gmailSettings);
 
   if (!hasGmailModify) {
     missingScopes.push(REQUIRED_SCOPES.gmailModify);
   }
   if (!hasGmailSend) {
     missingScopes.push(REQUIRED_SCOPES.gmailSend);
+  }
+  if (!hasGmailSettings) {
+    missingScopes.push(REQUIRED_SCOPES.gmailSettings);
   }
 
   // Check Calendar scopes
@@ -170,6 +177,7 @@ export async function checkUserScopes(
     hasTasksReadonlyOnly,
     hasGmailModify,
     hasGmailSend,
+    hasGmailSettings,
     hasCalendar,
     hasDriveReadonly,
     hasContactsReadonly,
@@ -295,6 +303,51 @@ export async function hasGmailSendAccess(
 ): Promise<boolean> {
   const result = await checkUserScopes(userId, accountId);
   return result.hasGmailSend;
+}
+
+/**
+ * Error message for insufficient Gmail settings permissions
+ * Used by chat tools to provide helpful guidance
+ */
+export const INSUFFICIENT_GMAIL_SETTINGS_SCOPE_ERROR =
+  'Your Google account needs reconnection to enable Gmail filter management. ' +
+  'You currently do not have permission to create, modify, or delete Gmail filters. ' +
+  'Please go to Settings > Connections and click "Reconnect" on your Google account ' +
+  'to grant the necessary permissions for managing Gmail filters and settings.';
+
+/**
+ * Check if user has Gmail settings access
+ * Quick helper for chat tools
+ *
+ * @param userId - The user ID
+ * @param accountId - Optional specific account ID
+ * @returns true if user has gmail.settings.basic access
+ */
+export async function hasGmailSettingsAccess(
+  userId: string,
+  accountId?: string
+): Promise<boolean> {
+  const result = await checkUserScopes(userId, accountId);
+  return result.hasGmailSettings;
+}
+
+/**
+ * Validate Gmail settings access and throw helpful error if insufficient
+ * Use this at the start of any Gmail settings operation (create/modify/delete filters)
+ *
+ * @param userId - The user ID
+ * @param accountId - Optional specific account ID
+ * @throws Error with helpful reconnection message if scope is insufficient
+ */
+export async function requireGmailSettingsAccess(
+  userId: string,
+  accountId?: string
+): Promise<void> {
+  const result = await checkUserScopes(userId, accountId);
+
+  if (!result.hasGmailSettings) {
+    throw new Error(INSUFFICIENT_GMAIL_SETTINGS_SCOPE_ERROR);
+  }
 }
 
 /**

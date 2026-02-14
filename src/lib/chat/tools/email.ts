@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { google } from 'googleapis';
 import { getGoogleTokens, updateGoogleTokens } from '@/lib/auth';
-import { requireGmailModifyAccess, requireGmailSendAccess } from '@/lib/auth/scopes';
+import { requireGmailModifyAccess, requireGmailSendAccess, requireGmailSettingsAccess } from '@/lib/auth/scopes';
 import { GmailService } from '@/lib/google/gmail';
 
 const LOG_PREFIX = '[Email Tools]';
@@ -661,8 +661,8 @@ export const createEmailFilterTool = {
     userId: string
   ): Promise<{ message: string }> {
     try {
-      // Check for Gmail modify access before creating filters
-      await requireGmailModifyAccess(userId);
+      // Check for Gmail settings access before creating filters
+      await requireGmailSettingsAccess(userId);
 
       const validated = createEmailFilterToolSchema.parse(params);
       const gmailService = await getGmailClient(userId);
@@ -849,8 +849,8 @@ export const deleteEmailFilterTool = {
     userId: string
   ): Promise<{ message: string }> {
     try {
-      // Check for Gmail modify access before deleting filters
-      await requireGmailModifyAccess(userId);
+      // Check for Gmail settings access before deleting filters
+      await requireGmailSettingsAccess(userId);
 
       const validated = deleteEmailFilterToolSchema.parse(params);
       const gmailService = await getGmailClient(userId);
