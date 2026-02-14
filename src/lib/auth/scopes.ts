@@ -71,11 +71,12 @@ export interface ScopeCheckResult {
 
 /**
  * Parse scope string into array of individual scopes
- * Google stores scopes as space-separated string
+ * Better Auth stores scopes as comma-separated string
  */
 function parseScopeString(scopeString: string | null): string[] {
   if (!scopeString) return [];
-  return scopeString.split(' ').filter((s) => s.length > 0);
+  // Better Auth stores scopes comma-separated (not space-separated)
+  return scopeString.split(',').map(s => s.trim()).filter(Boolean);
 }
 
 /**

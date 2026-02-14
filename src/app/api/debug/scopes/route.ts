@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
 
     // Parse scopes for each account
     const accountsWithScopes = googleAccounts.map(account => {
-      const scopes = account.scope ? account.scope.split(' ') : [];
+      // Better Auth stores scopes comma-separated
+      const scopes = account.scope ? account.scope.split(',').map(s => s.trim()) : [];
 
       return {
         accountId: account.accountId,
