@@ -276,18 +276,15 @@ export default function AccountsSettingsPage() {
   // Reconnect account to refresh OAuth scopes
   // Deletes existing tokens BEFORE redirecting to OAuth to force full consent screen
   const handleReconnect = async (accountEmail: string | null) => {
-    if (!accountEmail) {
-      showMessage('error', 'Cannot reconnect: account email not found');
-      return;
-    }
-
+    // Email is optional - used as login_hint in OAuth but not required
+    // Backend will look up account by userId + providerId
     try {
       // Call the reconnect API to delete existing tokens before OAuth redirect
       // This ensures Google shows the FULL consent screen with ALL scopes
       const response = await fetch('/api/auth/reconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountEmail }),
+        body: JSON.stringify({ accountEmail: accountEmail || undefined }),
       });
 
       if (!response.ok) {

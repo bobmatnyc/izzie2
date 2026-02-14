@@ -35,12 +35,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { accountEmail } = body;
 
-    if (!accountEmail) {
-      return NextResponse.json(
-        { error: 'accountEmail is required' },
-        { status: 400 }
-      );
-    }
+    // Email is optional - only used as login_hint in OAuth URL
+    // Account lookup works via userId + providerId regardless of email
 
     const db = dbClient.getDb();
 
@@ -175,7 +171,13 @@ export async function POST(request: NextRequest) {
     // However, since we've cleared/deleted the old tokens, Google will show the
     // full consent screen with ALL requested scopes (not incremental auth).
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3300';
-    const redirectUrl = `${baseUrl}/api/auth/sign-in/google?callbackURL=/dashboard/settings/accounts`;
+    let redirectUrl = `${baseUrl}/api/auth/sign-in/google?callbackURL=/dashboard/settings/accounts`;
+
+    // Optionally add login_hint if email is available
+    // This helps pre-select the account in Google's account picker
+    if (accountEmail) {
+      redirectUrl += `&login_hint=${encodeURIComponent(accountEmail)}`;
+    }
 
     return NextResponse.json({
       success: true,
