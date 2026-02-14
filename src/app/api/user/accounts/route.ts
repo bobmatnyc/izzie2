@@ -36,6 +36,40 @@ export async function GET(request: NextRequest) {
     // Get all Google accounts with metadata
     const userAccounts = await getAllGoogleAccounts(userId);
 
+    // Backfill missing accountEmail fields from Google OAuth
+    for (const account of userAccounts) {
+      if (!account.accountEmail && account.accessToken) {
+        try {
+          // Fetch user info from Google
+          const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: {
+              Authorization: `Bearer ${account.accessToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const userInfo = await response.json();
+            const email = userInfo.email;
+
+            if (email) {
+              // Update the metadata with the email
+              await updateAccountMetadata(userId, account.id, { accountEmail: email });
+
+              // Update the account object for the response
+              account.accountEmail = email;
+
+              console.log(`${LOG_PREFIX} Backfilled email for account:`, account.id, email);
+            }
+          } else {
+            console.warn(`${LOG_PREFIX} Failed to fetch userinfo for account:`, account.id, response.status);
+          }
+        } catch (error) {
+          console.error(`${LOG_PREFIX} Error backfilling email for account:`, account.id, error);
+          // Continue processing other accounts even if one fails
+        }
+      }
+    }
+
     // Map to response format (exclude sensitive tokens)
     const accountsResponse = userAccounts.map((account) => ({
       id: account.id,
