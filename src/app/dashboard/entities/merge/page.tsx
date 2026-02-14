@@ -215,8 +215,25 @@ export default function MergeSuggestionsPage() {
       {error && (
         <Card className="border-destructive bg-destructive/10 mb-6">
           <CardContent className="py-4">
-            <p className="text-destructive font-medium">Error loading suggestions</p>
-            <p className="text-sm text-destructive/80 mt-1">{error}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-destructive font-medium">Error loading suggestions</p>
+                <p className="text-sm text-destructive/80 mt-1">{error}</p>
+                {error.includes('Authentication') && (
+                  <p className="text-sm text-destructive/80 mt-2">
+                    Please try refreshing the page or signing in again.
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchSuggestions}
+                className="ml-4"
+              >
+                Retry
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

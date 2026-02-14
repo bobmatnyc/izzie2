@@ -20,7 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, AuthenticationError } from '@/lib/auth';
 import { rateLimit, getClientIP, getRetryAfterSeconds } from '@/lib/rate-limit';
 import { dbClient } from '@/lib/db';
 import {
@@ -147,6 +147,15 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching suggestions:`, error);
+
+    // Handle authentication errors
+    if (error instanceof Error && error.name === 'AuthenticationError') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch merge suggestions' },
       { status: 500 }
@@ -211,6 +220,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error creating suggestions:`, error);
+
+    // Handle authentication errors
+    if (error instanceof Error && error.name === 'AuthenticationError') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to create merge suggestions' },
       { status: 500 }
@@ -304,6 +322,15 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error updating suggestion:`, error);
+
+    // Handle authentication errors
+    if (error instanceof Error && error.name === 'AuthenticationError') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to update merge suggestion' },
       { status: 500 }
