@@ -165,24 +165,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build OAuth redirect URL
-    // Note: Better Auth doesn't support login_hint parameter for social providers
-    // (see GitHub issue #5592). The user will need to select their account manually.
-    // However, since we've cleared/deleted the old tokens, Google will show the
-    // full consent screen with ALL requested scopes (not incremental auth).
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3300';
-    let redirectUrl = `${baseUrl}/api/auth/sign-in/google?callbackURL=/dashboard/settings/accounts`;
-
-    // Optionally add login_hint if email is available
-    // This helps pre-select the account in Google's account picker
-    if (accountEmail) {
-      redirectUrl += `&login_hint=${encodeURIComponent(accountEmail)}`;
-    }
-
+    // Return success - frontend will initiate OAuth flow using Better Auth's client-side method
+    // This avoids manually constructing OAuth URLs which can fail in production
     return NextResponse.json({
       success: true,
-      redirectUrl,
       accountDeleted: !!accountToDelete,
+      accountEmail: accountEmail || null,
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error:`, error);

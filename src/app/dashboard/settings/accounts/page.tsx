@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { useConfirmModal } from '@/components/ui/confirm-modal';
-import { linkGoogleAccount } from '@/lib/auth/client';
+import { linkGoogleAccount, signIn } from '@/lib/auth/client';
 
 type PageState = 'loading' | 'loaded' | 'error';
 
@@ -279,7 +279,7 @@ export default function AccountsSettingsPage() {
     // Email is optional - used as login_hint in OAuth but not required
     // Backend will look up account by userId + providerId
     try {
-      // Call the reconnect API to delete existing tokens before OAuth redirect
+      // Call the reconnect API to delete existing tokens
       // This ensures Google shows the FULL consent screen with ALL scopes
       const response = await fetch('/api/auth/reconnect', {
         method: 'POST',
@@ -292,10 +292,12 @@ export default function AccountsSettingsPage() {
         throw new Error(data.error || 'Failed to initiate reconnect');
       }
 
-      const data = await response.json();
-
-      // Redirect to OAuth with login_hint pre-filled
-      window.location.href = data.redirectUrl;
+      // Backend has cleared/deleted tokens - now initiate OAuth using Better Auth
+      // This uses the same reliable client-side method as "Link Google Account"
+      await signIn.social({
+        provider: 'google',
+        callbackURL: '/dashboard/settings/accounts',
+      });
     } catch (error) {
       showMessage('error', error instanceof Error ? error.message : 'Failed to reconnect');
     }
