@@ -44,6 +44,10 @@ import {
   listCalendarEventsTool,
   getCalendarEventTool,
   searchCalendarEventsTool,
+  createCalendarEventTool,
+  updateCalendarEventTool,
+  deleteCalendarEventTool,
+  respondToCalendarEventTool,
 } from './calendar';
 import {
   searchDriveFilesTool,
@@ -107,6 +111,10 @@ export const chatTools = {
   list_calendar_events: listCalendarEventsTool,
   get_calendar_event: getCalendarEventTool,
   search_calendar_events: searchCalendarEventsTool,
+  create_calendar_event: createCalendarEventTool,
+  update_calendar_event: updateCalendarEventTool,
+  delete_calendar_event: deleteCalendarEventTool,
+  respond_to_calendar_event: respondToCalendarEventTool,
   // Google Drive tools
   search_drive_files: searchDriveFilesTool,
   get_drive_file_content: getDriveFileContentTool,

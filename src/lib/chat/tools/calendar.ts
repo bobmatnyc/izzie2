@@ -324,3 +324,313 @@ export const searchCalendarEventsTool = {
     };
   },
 };
+
+// ===== CREATE CALENDAR EVENT TOOL =====
+
+export const createCalendarEventToolSchema = z.object({
+  title: z.string().describe('The title/summary of the calendar event'),
+  start: z
+    .string()
+    .describe('Start date/time in ISO 8601 format (e.g., "2024-12-31T14:00:00Z" or "2024-12-31")'),
+  end: z
+    .string()
+    .describe('End date/time in ISO 8601 format (e.g., "2024-12-31T15:00:00Z" or "2024-12-31")'),
+  description: z.string().optional().describe('Optional description/notes for the event'),
+  location: z.string().optional().describe('Optional location for the event'),
+  attendees: z
+    .array(z.string().email())
+    .optional()
+    .describe('Optional array of attendee email addresses'),
+  calendarId: z
+    .string()
+    .optional()
+    .default('primary')
+    .describe('Optional calendar ID. Defaults to primary calendar.'),
+});
+
+export type CreateCalendarEventParams = z.infer<typeof createCalendarEventToolSchema>;
+
+export const createCalendarEventTool = {
+  name: 'create_calendar_event',
+  description:
+    'Create a new calendar event in Google Calendar. Use this when the user wants to schedule a meeting, add an appointment, or create any calendar event. You can specify attendees, location, and other event details.',
+  parameters: createCalendarEventToolSchema,
+  async execute(params: CreateCalendarEventParams, userId: string): Promise<{ message: string }> {
+    console.log(`${LOG_PREFIX} Creating calendar event for user ${userId}`, params);
+
+    const validated = createCalendarEventToolSchema.parse(params);
+
+    // Parse and validate dates
+    const startDate = new Date(validated.start);
+    const endDate = new Date(validated.end);
+
+    if (isNaN(startDate.getTime())) {
+      throw new Error('Invalid start date format. Use ISO 8601 format (e.g., "2024-12-31T14:00:00Z").');
+    }
+    if (isNaN(endDate.getTime())) {
+      throw new Error('Invalid end date format. Use ISO 8601 format (e.g., "2024-12-31T15:00:00Z").');
+    }
+    if (endDate <= startDate) {
+      throw new Error('Event end time must be after start time.');
+    }
+
+    const calendarClient = await getCalendarClient(userId);
+
+    // Create event
+    const event = await calendarClient.createEvent({
+      summary: validated.title,
+      description: validated.description,
+      location: validated.location,
+      start: {
+        dateTime: startDate.toISOString(),
+        timeZone: 'UTC',
+      },
+      end: {
+        dateTime: endDate.toISOString(),
+        timeZone: 'UTC',
+      },
+      attendees: validated.attendees?.map((email) => ({ email })),
+    }, validated.calendarId);
+
+    console.log(`${LOG_PREFIX} Created event: ${event.summary} (ID: ${event.id})`);
+
+    // Format response message
+    let message = `✅ Created calendar event "${event.summary}"`;
+
+    if (event.start?.dateTime) {
+      const eventStartDate = new Date(event.start.dateTime);
+      message += ` on ${eventStartDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })} at ${eventStartDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      })}`;
+    }
+
+    if (validated.attendees && validated.attendees.length > 0) {
+      message += ` with ${validated.attendees.length} attendee${validated.attendees.length > 1 ? 's' : ''}`;
+    }
+
+    if (event.htmlLink) {
+      message += `\n\n🔗 View event: ${event.htmlLink}`;
+    }
+
+    return { message };
+  },
+};
+
+// ===== UPDATE CALENDAR EVENT TOOL =====
+
+export const updateCalendarEventToolSchema = z.object({
+  eventId: z.string().describe('The ID of the event to update'),
+  title: z.string().optional().describe('Optional new title for the event'),
+  start: z
+    .string()
+    .optional()
+    .describe('Optional new start date/time in ISO 8601 format'),
+  end: z
+    .string()
+    .optional()
+    .describe('Optional new end date/time in ISO 8601 format'),
+  description: z.string().optional().describe('Optional new description'),
+  location: z.string().optional().describe('Optional new location'),
+  attendees: z
+    .array(z.string().email())
+    .optional()
+    .describe('Optional new list of attendee email addresses (replaces existing attendees)'),
+  calendarId: z
+    .string()
+    .optional()
+    .default('primary')
+    .describe('Optional calendar ID. Defaults to primary calendar.'),
+});
+
+export type UpdateCalendarEventParams = z.infer<typeof updateCalendarEventToolSchema>;
+
+export const updateCalendarEventTool = {
+  name: 'update_calendar_event',
+  description:
+    'Update an existing calendar event in Google Calendar. Use this when the user wants to modify an event, change the time, add attendees, or update any event details. Only specify the fields that need to be changed.',
+  parameters: updateCalendarEventToolSchema,
+  async execute(params: UpdateCalendarEventParams, userId: string): Promise<{ message: string }> {
+    console.log(`${LOG_PREFIX} Updating calendar event for user ${userId}`, params);
+
+    const validated = updateCalendarEventToolSchema.parse(params);
+
+    const calendarClient = await getCalendarClient(userId);
+
+    // Get existing event first
+    const existingEvent = await calendarClient.getEvent(validated.eventId, validated.calendarId);
+
+    if (!existingEvent) {
+      throw new Error(`Event not found with ID: ${validated.eventId}`);
+    }
+
+    // Prepare update payload (only include fields that are being changed)
+    const updates: any = {};
+
+    if (validated.title !== undefined) {
+      updates.summary = validated.title;
+    }
+
+    if (validated.description !== undefined) {
+      updates.description = validated.description;
+    }
+
+    if (validated.location !== undefined) {
+      updates.location = validated.location;
+    }
+
+    if (validated.start !== undefined) {
+      const startDate = new Date(validated.start);
+      if (isNaN(startDate.getTime())) {
+        throw new Error('Invalid start date format. Use ISO 8601 format (e.g., "2024-12-31T14:00:00Z").');
+      }
+      updates.start = {
+        dateTime: startDate.toISOString(),
+        timeZone: 'UTC',
+      };
+    }
+
+    if (validated.end !== undefined) {
+      const endDate = new Date(validated.end);
+      if (isNaN(endDate.getTime())) {
+        throw new Error('Invalid end date format. Use ISO 8601 format (e.g., "2024-12-31T15:00:00Z").');
+      }
+      updates.end = {
+        dateTime: endDate.toISOString(),
+        timeZone: 'UTC',
+      };
+    }
+
+    // Validate dates if both are provided or one is being updated
+    if (updates.start && updates.end) {
+      const startTime = new Date(updates.start.dateTime).getTime();
+      const endTime = new Date(updates.end.dateTime).getTime();
+      if (endTime <= startTime) {
+        throw new Error('Event end time must be after start time.');
+      }
+    }
+
+    if (validated.attendees !== undefined) {
+      updates.attendees = validated.attendees.map((email) => ({ email }));
+    }
+
+    const updatedEvent = await calendarClient.updateEvent(
+      validated.eventId,
+      updates,
+      validated.calendarId
+    );
+
+    console.log(`${LOG_PREFIX} Updated event: ${updatedEvent.summary} (ID: ${updatedEvent.id})`);
+
+    return {
+      message: `✅ Updated calendar event "${updatedEvent.summary}"${updatedEvent.htmlLink ? `\n\n🔗 View event: ${updatedEvent.htmlLink}` : ''}`,
+    };
+  },
+};
+
+// ===== DELETE CALENDAR EVENT TOOL =====
+
+export const deleteCalendarEventToolSchema = z.object({
+  eventId: z.string().describe('The ID of the event to delete'),
+  calendarId: z
+    .string()
+    .optional()
+    .default('primary')
+    .describe('Optional calendar ID. Defaults to primary calendar.'),
+});
+
+export type DeleteCalendarEventParams = z.infer<typeof deleteCalendarEventToolSchema>;
+
+export const deleteCalendarEventTool = {
+  name: 'delete_calendar_event',
+  description:
+    'Delete a calendar event from Google Calendar. Use this when the user wants to cancel or remove an event. This action cannot be undone.',
+  parameters: deleteCalendarEventToolSchema,
+  async execute(params: DeleteCalendarEventParams, userId: string): Promise<{ message: string }> {
+    console.log(`${LOG_PREFIX} Deleting calendar event for user ${userId}`, params);
+
+    const validated = deleteCalendarEventToolSchema.parse(params);
+
+    const calendarClient = await getCalendarClient(userId);
+
+    // Get event details before deleting for confirmation message
+    const event = await calendarClient.getEvent(validated.eventId, validated.calendarId);
+
+    if (!event) {
+      throw new Error(`Event not found with ID: ${validated.eventId}`);
+    }
+
+    const eventTitle = event.summary || 'Untitled Event';
+
+    await calendarClient.deleteEvent(validated.eventId, validated.calendarId);
+
+    console.log(`${LOG_PREFIX} Deleted event: ${eventTitle} (ID: ${validated.eventId})`);
+
+    return {
+      message: `✅ Deleted calendar event "${eventTitle}"`,
+    };
+  },
+};
+
+// ===== RESPOND TO CALENDAR EVENT TOOL =====
+
+export const respondToCalendarEventToolSchema = z.object({
+  eventId: z.string().describe('The ID of the event to respond to'),
+  response: z
+    .enum(['accepted', 'declined', 'tentative'])
+    .describe('Your response to the event invitation: "accepted", "declined", or "tentative"'),
+  calendarId: z
+    .string()
+    .optional()
+    .default('primary')
+    .describe('Optional calendar ID. Defaults to primary calendar.'),
+});
+
+export type RespondToCalendarEventParams = z.infer<typeof respondToCalendarEventToolSchema>;
+
+export const respondToCalendarEventTool = {
+  name: 'respond_to_calendar_event',
+  description:
+    'Respond to a calendar event invitation. Use this when the user wants to accept, decline, or mark as tentative for a meeting invitation. The response choices are: "accepted", "declined", or "tentative".',
+  parameters: respondToCalendarEventToolSchema,
+  async execute(params: RespondToCalendarEventParams, userId: string): Promise<{ message: string }> {
+    console.log(`${LOG_PREFIX} Responding to calendar event for user ${userId}`, params);
+
+    const validated = respondToCalendarEventToolSchema.parse(params);
+
+    const calendarClient = await getCalendarClient(userId);
+
+    // Get event details
+    const event = await calendarClient.getEvent(validated.eventId, validated.calendarId);
+
+    if (!event) {
+      throw new Error(`Event not found with ID: ${validated.eventId}`);
+    }
+
+    const eventTitle = event.summary || 'Untitled Event';
+
+    // Update attendee response
+    await calendarClient.respondToEvent(
+      validated.eventId,
+      validated.response,
+      validated.calendarId
+    );
+
+    console.log(`${LOG_PREFIX} Responded "${validated.response}" to event: ${eventTitle} (ID: ${validated.eventId})`);
+
+    const responseText = {
+      accepted: 'accepted',
+      declined: 'declined',
+      tentative: 'marked as tentative for',
+    }[validated.response];
+
+    return {
+      message: `✅ You have ${responseText} the event "${eventTitle}"`,
+    };
+  },
+};

@@ -124,10 +124,10 @@ export class CalendarService {
   /**
    * Get a specific event by ID
    */
-  async getEvent(eventId: string): Promise<CalendarEvent | null> {
+  async getEvent(eventId: string, calendarId: string = 'primary'): Promise<CalendarEvent | null> {
     try {
       const response = await this.calendar.events.get({
-        calendarId: 'primary',
+        calendarId,
         eventId,
       });
 
@@ -167,6 +167,228 @@ export class CalendarService {
     } catch (error) {
       console.error('[Calendar] Failed to get event:', error);
       return null;
+    }
+  }
+
+  /**
+   * Create a new calendar event
+   */
+  async createEvent(
+    event: {
+      summary: string;
+      description?: string;
+      location?: string;
+      start: { dateTime: string; timeZone?: string };
+      end: { dateTime: string; timeZone?: string };
+      attendees?: Array<{ email: string }>;
+    },
+    calendarId: string = 'primary'
+  ): Promise<CalendarEvent> {
+    try {
+      const response = await this.calendar.events.insert({
+        calendarId,
+        requestBody: event,
+      });
+
+      const item = response.data;
+
+      return {
+        id: item.id || '',
+        summary: item.summary || 'Untitled Event',
+        description: item.description || undefined,
+        location: item.location || undefined,
+        start: this.parseDateTime(item.start),
+        end: this.parseDateTime(item.end),
+        attendees:
+          item.attendees?.map((attendee) => ({
+            email: attendee.email || '',
+            displayName: attendee.displayName || attendee.email || '',
+            responseStatus: attendee.responseStatus as
+              | 'accepted'
+              | 'declined'
+              | 'tentative'
+              | 'needsAction'
+              | undefined,
+            organizer: attendee.organizer || false,
+            self: attendee.self || false,
+          })) || [],
+        organizer: item.organizer
+          ? {
+              email: item.organizer.email || '',
+              displayName: item.organizer.displayName || item.organizer.email || '',
+              self: item.organizer.self || false,
+            }
+          : undefined,
+        recurringEventId: item.recurringEventId || undefined,
+        status: item.status as 'confirmed' | 'tentative' | 'cancelled' | undefined,
+        htmlLink: item.htmlLink || undefined,
+        hangoutLink: item.hangoutLink || undefined,
+      };
+    } catch (error) {
+      console.error('[Calendar] Failed to create event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing calendar event
+   */
+  async updateEvent(
+    eventId: string,
+    updates: {
+      summary?: string;
+      description?: string;
+      location?: string;
+      start?: { dateTime: string; timeZone?: string };
+      end?: { dateTime: string; timeZone?: string };
+      attendees?: Array<{ email: string }>;
+    },
+    calendarId: string = 'primary'
+  ): Promise<CalendarEvent> {
+    try {
+      const response = await this.calendar.events.patch({
+        calendarId,
+        eventId,
+        requestBody: updates,
+      });
+
+      const item = response.data;
+
+      return {
+        id: item.id || '',
+        summary: item.summary || 'Untitled Event',
+        description: item.description || undefined,
+        location: item.location || undefined,
+        start: this.parseDateTime(item.start),
+        end: this.parseDateTime(item.end),
+        attendees:
+          item.attendees?.map((attendee) => ({
+            email: attendee.email || '',
+            displayName: attendee.displayName || attendee.email || '',
+            responseStatus: attendee.responseStatus as
+              | 'accepted'
+              | 'declined'
+              | 'tentative'
+              | 'needsAction'
+              | undefined,
+            organizer: attendee.organizer || false,
+            self: attendee.self || false,
+          })) || [],
+        organizer: item.organizer
+          ? {
+              email: item.organizer.email || '',
+              displayName: item.organizer.displayName || item.organizer.email || '',
+              self: item.organizer.self || false,
+            }
+          : undefined,
+        recurringEventId: item.recurringEventId || undefined,
+        status: item.status as 'confirmed' | 'tentative' | 'cancelled' | undefined,
+        htmlLink: item.htmlLink || undefined,
+        hangoutLink: item.hangoutLink || undefined,
+      };
+    } catch (error) {
+      console.error('[Calendar] Failed to update event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a calendar event
+   */
+  async deleteEvent(eventId: string, calendarId: string = 'primary'): Promise<void> {
+    try {
+      await this.calendar.events.delete({
+        calendarId,
+        eventId,
+      });
+    } catch (error) {
+      console.error('[Calendar] Failed to delete event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Respond to a calendar event invitation
+   */
+  async respondToEvent(
+    eventId: string,
+    responseStatus: 'accepted' | 'declined' | 'tentative',
+    calendarId: string = 'primary'
+  ): Promise<CalendarEvent> {
+    try {
+      // First get the event to find the user's attendee entry
+      const event = await this.getEvent(eventId, calendarId);
+
+      if (!event) {
+        throw new Error(`Event not found: ${eventId}`);
+      }
+
+      // Find the current user's attendee entry (marked with self: true)
+      const userAttendee = event.attendees?.find((a) => a.self);
+
+      if (!userAttendee) {
+        throw new Error('User is not an attendee of this event');
+      }
+
+      // Update the event with the new response status for the user
+      const updatedAttendees = event.attendees?.map((attendee) => {
+        if (attendee.self) {
+          return {
+            email: attendee.email,
+            responseStatus,
+          };
+        }
+        return {
+          email: attendee.email,
+          responseStatus: attendee.responseStatus,
+        };
+      });
+
+      const response = await this.calendar.events.patch({
+        calendarId,
+        eventId,
+        requestBody: {
+          attendees: updatedAttendees,
+        },
+      });
+
+      const item = response.data;
+
+      return {
+        id: item.id || '',
+        summary: item.summary || 'Untitled Event',
+        description: item.description || undefined,
+        location: item.location || undefined,
+        start: this.parseDateTime(item.start),
+        end: this.parseDateTime(item.end),
+        attendees:
+          item.attendees?.map((attendee) => ({
+            email: attendee.email || '',
+            displayName: attendee.displayName || attendee.email || '',
+            responseStatus: attendee.responseStatus as
+              | 'accepted'
+              | 'declined'
+              | 'tentative'
+              | 'needsAction'
+              | undefined,
+            organizer: attendee.organizer || false,
+            self: attendee.self || false,
+          })) || [],
+        organizer: item.organizer
+          ? {
+              email: item.organizer.email || '',
+              displayName: item.organizer.displayName || item.organizer.email || '',
+              self: item.organizer.self || false,
+            }
+          : undefined,
+        recurringEventId: item.recurringEventId || undefined,
+        status: item.status as 'confirmed' | 'tentative' | 'cancelled' | undefined,
+        htmlLink: item.htmlLink || undefined,
+        hangoutLink: item.hangoutLink || undefined,
+      };
+    } catch (error) {
+      console.error('[Calendar] Failed to respond to event:', error);
+      throw error;
     }
   }
 }
