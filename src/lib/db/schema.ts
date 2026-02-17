@@ -2045,3 +2045,46 @@ export const FILE_ATTACHMENT_DIRECTION = {
 } as const;
 
 export type FileAttachmentDirection = (typeof FILE_ATTACHMENT_DIRECTION)[keyof typeof FILE_ATTACHMENT_DIRECTION];
+
+/**
+ * User Settings table
+ * Stores per-user API keys (encrypted) and budget configurations
+ * Part of BYOK (Bring Your Own Key) feature
+ */
+export const userSettings = pgTable(
+  'user_settings',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    // Encrypted OpenRouter API key (AES-256-GCM)
+    encryptedApiKey: text('encrypted_api_key'),
+    apiKeyIv: text('api_key_iv'), // Initialization vector for AES-GCM
+    apiKeyTag: text('api_key_tag'), // Authentication tag for AES-GCM
+    apiKeySalt: text('api_key_salt'), // Salt for key derivation
+    apiKeyLastFour: text('api_key_last_four'), // Last 4 chars for display (e.g., "...sk-1234")
+
+    // Budget settings
+    dailyBudgetCents: integer('daily_budget_cents'), // Daily spending limit in cents (null = unlimited)
+    budgetResetHour: integer('budget_reset_hour').default(0), // Hour to reset budget (0-23, UTC by default)
+    timezone: text('timezone').default('UTC'), // User's timezone for budget reset
+
+    // Timestamps
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('user_settings_user_id_idx').on(table.userId),
+    userIdUnique: uniqueIndex('user_settings_user_id_unique').on(table.userId),
+  })
+);
+
+/**
+ * Type exports for user settings
+ */
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;
