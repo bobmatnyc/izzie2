@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 // Types
 type PageState = 'loading' | 'loaded' | 'error';
 type SaveState = 'idle' | 'saving' | 'success' | 'error';
-type SettingsTab = 'identity' | 'writing' | 'alerts' | 'notifications' | 'integrations' | 'usage';
+type SettingsTab = 'identity' | 'writing' | 'alerts' | 'notifications' | 'integrations' | 'usage' | 'billing';
 
 // Tab configuration
 const TABS: { value: SettingsTab; label: string; description: string }[] = [
@@ -22,6 +22,7 @@ const TABS: { value: SettingsTab; label: string; description: string }[] = [
   { value: 'notifications', label: 'Notifications', description: 'Digest and Telegram' },
   { value: 'integrations', label: 'Integrations', description: 'MCP and external tools' },
   { value: 'usage', label: 'Usage', description: 'Usage tracking and limits' },
+  { value: 'billing', label: 'Billing', description: 'API key and budget settings' },
 ];
 
 // Common timezones
@@ -149,6 +150,25 @@ export default function SettingsPage() {
   const [newVipSender, setNewVipSender] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
 
+  // Billing state (BYOK settings)
+  const [billingSettings, setBillingSettings] = useState<{
+    hasApiKey: boolean;
+    apiKeyLastFour: string | null;
+    dailyBudgetCents: number | null;
+    budgetResetHour: number;
+    timezone: string;
+    currentDailySpendCents: number;
+  }>({
+    hasApiKey: false,
+    apiKeyLastFour: null,
+    dailyBudgetCents: null,
+    budgetResetHour: 0,
+    timezone: 'UTC',
+    currentDailySpendCents: 0,
+  });
+  const [newApiKey, setNewApiKey] = useState('');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+
   // Save state
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -207,6 +227,22 @@ export default function SettingsPage() {
             notifyOnP0: data.preferences.notifyOnP0 ?? true,
             notifyOnP1: data.preferences.notifyOnP1 ?? true,
             notifyOnP2: data.preferences.notifyOnP2 ?? false,
+          });
+        }
+      }
+
+      // Fetch billing settings (BYOK)
+      const billingRes = await fetch('/api/user/settings');
+      if (billingRes.ok) {
+        const data = await billingRes.json();
+        if (data.settings) {
+          setBillingSettings({
+            hasApiKey: data.settings.hasApiKey ?? false,
+            apiKeyLastFour: data.settings.apiKeyLastFour ?? null,
+            dailyBudgetCents: data.settings.dailyBudgetCents ?? null,
+            budgetResetHour: data.settings.budgetResetHour ?? 0,
+            timezone: data.settings.timezone ?? 'UTC',
+            currentDailySpendCents: data.settings.currentDailySpendCents ?? 0,
           });
         }
       }
@@ -448,6 +484,124 @@ export default function SettingsPage() {
       ...prev,
       customUrgentKeywords: prev.customUrgentKeywords.filter((k) => k !== keyword),
     }));
+  };
+
+  // Save billing settings (API key)
+  const saveBillingApiKey = async () => {
+    setSaveState('saving');
+    setSaveError(null);
+
+    try {
+      const response = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: newApiKey.trim() || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save API key');
+      }
+
+      if (data.settings) {
+        setBillingSettings((prev) => ({
+          ...prev,
+          hasApiKey: data.settings.hasApiKey,
+          apiKeyLastFour: data.settings.apiKeyLastFour,
+        }));
+      }
+
+      setNewApiKey('');
+      setShowApiKeyInput(false);
+      setSaveState('success');
+      setTimeout(() => setSaveState('idle'), 3000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save');
+      setSaveState('error');
+    }
+  };
+
+  // Remove API key
+  const removeApiKey = async () => {
+    setSaveState('saving');
+    setSaveError(null);
+
+    try {
+      const response = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: null }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove API key');
+      }
+
+      if (data.settings) {
+        setBillingSettings((prev) => ({
+          ...prev,
+          hasApiKey: data.settings.hasApiKey,
+          apiKeyLastFour: data.settings.apiKeyLastFour,
+        }));
+      }
+
+      setSaveState('success');
+      setTimeout(() => setSaveState('idle'), 3000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to remove');
+      setSaveState('error');
+    }
+  };
+
+  // Save billing budget settings
+  const saveBillingBudget = async () => {
+    setSaveState('saving');
+    setSaveError(null);
+
+    try {
+      const response = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dailyBudgetCents: billingSettings.dailyBudgetCents,
+          budgetResetHour: billingSettings.budgetResetHour,
+          timezone: billingSettings.timezone,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save budget settings');
+      }
+
+      if (data.settings) {
+        setBillingSettings((prev) => ({
+          ...prev,
+          dailyBudgetCents: data.settings.dailyBudgetCents,
+          budgetResetHour: data.settings.budgetResetHour,
+          timezone: data.settings.timezone,
+          currentDailySpendCents: data.settings.currentDailySpendCents,
+        }));
+      }
+
+      setSaveState('success');
+      setTimeout(() => setSaveState('idle'), 3000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save');
+      setSaveState('error');
+    }
+  };
+
+  // Format cents as dollars
+  const formatCentsAsDollars = (cents: number | null): string => {
+    if (cents === null) return 'Unlimited';
+    return `$${(cents / 100).toFixed(2)}`;
   };
 
   // Render tab navigation
@@ -893,6 +1047,274 @@ export default function SettingsPage() {
     </div>
   );
 
+  // Render billing tab (BYOK settings)
+  const renderBillingTab = () => (
+    <div className="space-y-6">
+      {/* API Key Section */}
+      <div className="rounded-lg border bg-card shadow-sm">
+        <div className="p-6 space-y-4">
+          <div>
+            <h3 className="font-medium text-foreground">OpenRouter API Key</h3>
+            <p className="text-sm text-muted-foreground">
+              Use your own OpenRouter API key to bypass shared limits and use your preferred models.
+              Your key is encrypted and never exposed after saving.
+            </p>
+          </div>
+
+          {billingSettings.hasApiKey ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <svg className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">API Key Configured</p>
+                    <p className="text-sm text-muted-foreground">
+                      Ending in ...{billingSettings.apiKeyLastFour}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowApiKeyInput(true)}
+                  >
+                    Change
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={removeApiKey}
+                    disabled={saveState === 'saving'}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+
+              {showApiKeyInput && (
+                <div className="space-y-3 p-4 rounded-lg border">
+                  <label className="block text-sm font-medium text-foreground">
+                    New API Key
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={newApiKey}
+                      onChange={(e) => setNewApiKey(e.target.value)}
+                      placeholder="sk-or-..."
+                      className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <Button onClick={saveBillingApiKey} disabled={saveState === 'saving' || !newApiKey.trim()}>
+                      Save
+                    </Button>
+                    <Button variant="outline" onClick={() => { setShowApiKeyInput(false); setNewApiKey(''); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Get your API key from{' '}
+                    <a
+                      href="https://openrouter.ai/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      OpenRouter
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-dashed">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                    <svg className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">No API Key</p>
+                    <p className="text-sm text-muted-foreground">Using shared platform limits</p>
+                  </div>
+                </div>
+                <Button onClick={() => setShowApiKeyInput(true)}>
+                  Add API Key
+                </Button>
+              </div>
+
+              {showApiKeyInput && (
+                <div className="space-y-3 p-4 rounded-lg border">
+                  <label className="block text-sm font-medium text-foreground">
+                    OpenRouter API Key
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={newApiKey}
+                      onChange={(e) => setNewApiKey(e.target.value)}
+                      placeholder="sk-or-..."
+                      className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <Button onClick={saveBillingApiKey} disabled={saveState === 'saving' || !newApiKey.trim()}>
+                      Save
+                    </Button>
+                    <Button variant="outline" onClick={() => { setShowApiKeyInput(false); setNewApiKey(''); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Get your API key from{' '}
+                    <a
+                      href="https://openrouter.ai/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      OpenRouter
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Budget Section */}
+      <div className="rounded-lg border bg-card shadow-sm">
+        <div className="p-6 space-y-4">
+          <div>
+            <h3 className="font-medium text-foreground">Daily Budget</h3>
+            <p className="text-sm text-muted-foreground">
+              Set a daily spending limit to control costs. Leave empty for unlimited.
+            </p>
+          </div>
+
+          {/* Current Spend Display */}
+          <div className="p-4 rounded-lg bg-muted/50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Current Daily Spend</span>
+              <span className="font-medium text-foreground">
+                {formatCentsAsDollars(billingSettings.currentDailySpendCents)}
+              </span>
+            </div>
+            {billingSettings.dailyBudgetCents !== null && (
+              <>
+                <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all',
+                      billingSettings.currentDailySpendCents >= billingSettings.dailyBudgetCents
+                        ? 'bg-destructive'
+                        : billingSettings.currentDailySpendCents >= billingSettings.dailyBudgetCents * 0.8
+                        ? 'bg-amber-500'
+                        : 'bg-primary'
+                    )}
+                    style={{
+                      width: `${Math.min(100, (billingSettings.currentDailySpendCents / billingSettings.dailyBudgetCents) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between mt-1 text-xs text-muted-foreground">
+                  <span>$0</span>
+                  <span>{formatCentsAsDollars(billingSettings.dailyBudgetCents)}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Budget Amount Input */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Daily Limit
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={billingSettings.dailyBudgetCents !== null ? (billingSettings.dailyBudgetCents / 100).toFixed(2) : ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setBillingSettings((prev) => ({
+                      ...prev,
+                      dailyBudgetCents: value === '' ? null : Math.round(parseFloat(value) * 100),
+                    }));
+                  }}
+                  placeholder="Unlimited"
+                  className="w-full pl-7 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty for no limit
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Reset Hour
+              </label>
+              <select
+                value={billingSettings.budgetResetHour}
+                onChange={(e) =>
+                  setBillingSettings((prev) => ({
+                    ...prev,
+                    budgetResetHour: parseInt(e.target.value),
+                  }))
+                }
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {Array.from({ length: 24 }, (_, i) => (
+                  <option key={i} value={i}>
+                    {i === 0 ? '12:00 AM (Midnight)' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM (Noon)' : `${i - 12}:00 PM`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Timezone */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Timezone
+            </label>
+            <select
+              value={billingSettings.timezone}
+              onChange={(e) =>
+                setBillingSettings((prev) => ({
+                  ...prev,
+                  timezone: e.target.value,
+                }))
+              }
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {COMMON_TIMEZONES.map((tz) => (
+                <option key={tz.value} value={tz.value}>
+                  {tz.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="rounded-lg border bg-card shadow-sm p-6">
+        {renderSaveButton(saveBillingBudget)}
+      </div>
+    </div>
+  );
+
   // Render save button helper
   const renderSaveButton = (onSave: () => Promise<void>) => (
     <div className="pt-4 border-t">
@@ -1114,6 +1536,8 @@ export default function SettingsPage() {
         return renderIntegrationsTab();
       case 'usage':
         return renderUsageTab();
+      case 'billing':
+        return renderBillingTab();
       default:
         return null;
     }
