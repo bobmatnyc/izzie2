@@ -331,13 +331,32 @@ Respond with ONLY the category name, nothing else.`;
 }
 
 /**
- * Singleton instance for use across the application
+ * Singleton instance for use across the application (system key)
  */
 let clientInstance: OpenRouterClient | null = null;
 
+/**
+ * Get the default AI client using system API key
+ */
 export function getAIClient(): OpenRouterClient {
   if (!clientInstance) {
     clientInstance = new OpenRouterClient();
   }
   return clientInstance;
+}
+
+/**
+ * Create an AI client with a specific API key
+ * Used for BYOK (Bring Your Own Key) feature
+ *
+ * @param apiKey - User's OpenRouter API key (if null, returns system client)
+ * @returns OpenRouterClient instance
+ */
+export function createAIClient(apiKey: string | null): OpenRouterClient {
+  if (apiKey) {
+    // Create a new client with user's API key
+    return new OpenRouterClient(apiKey);
+  }
+  // Fall back to system client
+  return getAIClient();
 }

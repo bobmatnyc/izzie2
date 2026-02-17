@@ -18,7 +18,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthWithTestBypass } from '@/lib/auth/test-auth';
 import { rateLimit, getClientIP, getRetryAfterSeconds } from '@/lib/rate-limit';
-import { getAIClient } from '@/lib/ai/client';
+import { createAIClient } from '@/lib/ai/client';
+import {
+  checkBudgetAndGetKey,
+  createBudgetExceededResponse,
+  type BudgetCheckResult,
+} from '@/lib/services/budget-guard.service';
 import { MODELS, estimateTokens, MODEL_ROLES, ESCALATION_CONFIG } from '@/lib/ai/models';
 import { validateResponse } from '@/lib/chat/response-validator';
 import { retrieveContext } from '@/lib/chat/context-retrieval';
@@ -298,8 +303,25 @@ ${RESPONSE_FORMAT_INSTRUCTION}
       message
     );
 
-    // Get AI client
-    const aiClient = getAIClient();
+    // Check budget and get appropriate API key (BYOK Phase 3)
+    const budgetResult: BudgetCheckResult = await checkBudgetAndGetKey(userId);
+
+    if (!budgetResult.allowed) {
+      console.log(`${LOG_PREFIX} Budget exceeded for user ${userId}`);
+      return NextResponse.json(createBudgetExceededResponse(budgetResult), { status: 402 });
+    }
+
+    // Log which key is being used
+    if (budgetResult.usingUserKey) {
+      console.log(
+        `${LOG_PREFIX} Using user's API key (spend: ${budgetResult.currentSpendCents ?? 0}c / ${budgetResult.budgetCents ?? 'unlimited'}c)`
+      );
+    } else {
+      console.log(`${LOG_PREFIX} Using system API key`);
+    }
+
+    // Get AI client with appropriate key
+    const aiClient = createAIClient(budgetResult.apiKey);
 
     // Get available tools (both MCP and native chat tools)
     // MCP tools: either search-based (new) or all at once (legacy)

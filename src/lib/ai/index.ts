@@ -17,7 +17,7 @@ export {
 } from './models';
 
 // Re-export client
-export { OpenRouterClient, getAIClient } from './client';
+export { OpenRouterClient, getAIClient, createAIClient } from './client';
 
 // Convenience functions using the singleton client
 import { getAIClient } from './client';

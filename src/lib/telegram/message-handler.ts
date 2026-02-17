@@ -19,7 +19,8 @@ import { formatContextForPrompt } from '@/lib/chat/context-formatter';
 import { getUserPreferences, formatWritingStyleInstructions } from '@/lib/chat/preferences';
 import { getSelfAwarenessContext, formatSelfAwarenessForPrompt } from '@/lib/chat/self-awareness';
 import { validateResponse } from '@/lib/chat/response-validator';
-import { getAIClient } from '@/lib/ai/client';
+import { createAIClient } from '@/lib/ai/client';
+import { checkBudgetAndGetKey, type BudgetCheckResult } from '@/lib/services/budget-guard.service';
 import { MODELS, estimateTokens, MODEL_ROLES, ESCALATION_CONFIG } from '@/lib/ai/models';
 import { getTelegramBot, TelegramBot } from './bot';
 import { logAudit } from './audit';
@@ -302,8 +303,36 @@ ${RESPONSE_FORMAT_INSTRUCTION}
     const tools: Tool[] = getChatToolDefinitions();
     console.log(`${LOG_PREFIX} ${tools.length} chat tools available`);
 
-    // 7. Call AI client with tool support
-    const aiClient = getAIClient();
+    // 7. Check budget and get appropriate API key (BYOK Phase 3)
+    const budgetResult: BudgetCheckResult = await checkBudgetAndGetKey(userId);
+
+    if (!budgetResult.allowed) {
+      console.log(`${LOG_PREFIX} Budget exceeded for user ${userId}`);
+      // Clear typing indicator before sending budget message
+      if (typingInterval) {
+        clearInterval(typingInterval);
+        typingInterval = null;
+      }
+      const budgetMsg =
+        `Your daily budget has been exceeded. ` +
+        `Current spend: $${((budgetResult.currentSpendCents ?? 0) / 100).toFixed(2)}, ` +
+        `Budget: $${((budgetResult.budgetCents ?? 0) / 100).toFixed(2)}. ` +
+        `Your budget will reset at the configured hour.`;
+      await bot.send(telegramChatId.toString(), budgetMsg, undefined, messageThreadId);
+      return;
+    }
+
+    // Log which key is being used
+    if (budgetResult.usingUserKey) {
+      console.log(
+        `${LOG_PREFIX} Using user's API key (spend: ${budgetResult.currentSpendCents ?? 0}c / ${budgetResult.budgetCents ?? 'unlimited'}c)`
+      );
+    } else {
+      console.log(`${LOG_PREFIX} Using system API key`);
+    }
+
+    // 8. Call AI client with tool support
+    const aiClient = createAIClient(budgetResult.apiKey);
     let currentModel = MODELS.GENERAL;
     let currentTemperature = 0.7;
     let escalationMetadata: any = null;
