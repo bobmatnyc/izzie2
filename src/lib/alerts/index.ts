@@ -5,8 +5,8 @@
  * ```typescript
  * import { classifyEmail, classifyCalendarEvent, routeAlert } from '@/lib/alerts';
  *
- * // Classify an email
- * const alert = classifyEmail(email, config);
+ * // Classify an email (async for LLM-based summarization)
+ * const alert = await classifyEmail(email, config);
  *
  * // Route to notification channel
  * await routeAlert(alert, config, sendTelegram);

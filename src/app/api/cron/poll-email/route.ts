@@ -193,8 +193,8 @@ async function pollUserEmails(
           continue;
         }
 
-        // Classify the email
-        const alert = classifyEmail(email, config);
+        // Classify the email (async for LLM-based summarization)
+        const alert = await classifyEmail(email, config);
 
         // Only route non-silent alerts
         if (alert.level !== AlertLevel.P3_SILENT) {

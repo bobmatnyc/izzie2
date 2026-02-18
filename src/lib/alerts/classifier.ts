@@ -10,6 +10,8 @@ import {
   ClassificationConfig,
   DEFAULT_CONFIG,
 } from './types';
+import { getAIClient } from '@/lib/ai/client';
+import { MODELS } from '@/lib/ai/models';
 
 /**
  * Patterns for detecting automated/promotional emails
@@ -192,10 +194,10 @@ function isReplyToUser(email: Email, userEmail?: string): boolean {
 /**
  * Classify an email into an alert level
  */
-export function classifyEmail(
+export async function classifyEmail(
   email: Email,
   config: ClassificationConfig = DEFAULT_CONFIG
-): ClassifiedAlert {
+): Promise<ClassifiedAlert> {
   const signals: string[] = [];
   let level = AlertLevel.P2_INFO; // Default baseline
 
@@ -239,7 +241,7 @@ export function classifyEmail(
   return {
     level,
     title: formatEmailTitle(email, level),
-    body: formatEmailBody(email),
+    body: await formatEmailBody(email),
     source: 'email',
     sourceId: email.id,
     signals,
@@ -359,12 +361,56 @@ function formatEmailTitle(email: Email, level: AlertLevel): string {
 }
 
 /**
- * Format email alert body
+ * Format email alert body using LLM for conversational summary
  */
-function formatEmailBody(email: Email): string {
+async function formatEmailBody(email: Email): Promise<string> {
   const subject = email.subject || '(no subject)';
-  const preview = email.snippet || email.body.slice(0, 100);
-  return `Subject: "${subject}"\n${preview}${preview.length >= 100 ? '...' : ''}`;
+  const preview = email.snippet || email.body.slice(0, 500);
+  const senderName = email.from.name || email.from.email.split('@')[0];
+
+  // Fallback format for when LLM fails
+  const fallbackBody = `Subject: "${subject}"\n${preview}${preview.length >= 100 ? '...' : ''}`;
+
+  try {
+    const client = getAIClient();
+    const response = await client.chat(
+      [
+        {
+          role: 'system',
+          content: `You are a helpful assistant that summarizes emails conversationally.
+Summarize the email in ONE natural sentence, like you're explaining it to a friend.
+Rules:
+- Keep it under 150 characters
+- Preserve key info: who it's from, what action (if any) is needed, any deadlines
+- Remove HTML entities and technical formatting
+- For newsletters/marketing: just the key value prop
+- For action required: lead with the action
+- Sound natural and conversational`,
+        },
+        {
+          role: 'user',
+          content: `Summarize this email from ${senderName}:
+Subject: ${subject}
+Content: ${preview}`,
+        },
+      ],
+      {
+        model: MODELS.CLASSIFIER,
+        maxTokens: 100,
+        temperature: 0.3,
+      }
+    );
+
+    const summary = response.content.trim();
+    // Validate we got a reasonable response
+    if (summary && summary.length > 10 && summary.length < 200) {
+      return summary;
+    }
+    return fallbackBody;
+  } catch (error) {
+    console.warn('[Classifier] LLM summarization failed, using fallback:', error);
+    return fallbackBody;
+  }
 }
 
 /**
