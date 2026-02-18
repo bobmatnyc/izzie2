@@ -408,7 +408,9 @@ Content: ${preview}`,
     }
     return fallbackBody;
   } catch (error) {
-    console.warn('[Classifier] LLM summarization failed, using fallback:', error);
+    console.error('❌ [Classifier] Email summarization failed - falling back to raw format');
+    console.error('   Check OPENROUTER_API_KEY is set in your environment');
+    console.error('   Error details:', error);
     return fallbackBody;
   }
 }
