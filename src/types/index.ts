@@ -67,6 +67,9 @@ export interface ChatOptions {
   tools?: Tool[];
   tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
   extra?: Record<string, unknown>;
+  // Cost tracking fields
+  operationType?: 'chat' | 'extraction' | 'training' | 'research' | 'agent' | 'telegram' | 'discovery';
+  userId?: string;
 }
 
 export interface ChatUsage {

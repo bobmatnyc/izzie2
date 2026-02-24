@@ -22,6 +22,7 @@ import type {
   ClassificationResult,
   UsageStats,
 } from '@/types';
+import { trackLLMUsageAsync } from '@/lib/llm/usage-tracker';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const MAX_RETRIES = 3;
@@ -133,6 +134,22 @@ export class OpenRouterClient {
           console.log(
             `[AI] Actual cost: $${actualCost.toFixed(6)} (${usage.total_tokens} tokens)`
           );
+        }
+
+        // Track usage in database for budget enforcement
+        if (options.logCost && options.userId && options.operationType) {
+          trackLLMUsageAsync({
+            userId: options.userId,
+            operationType: options.operationType as any, // Type assertion for now
+            model: model,
+            inputTokens: usage.prompt_tokens || 0,
+            outputTokens: usage.completion_tokens || 0,
+            metadata: {
+              temperature: options.temperature,
+              maxTokens: options.maxTokens,
+              ...options.extra,
+            },
+          });
         }
 
         return response;

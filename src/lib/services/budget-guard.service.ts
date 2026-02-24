@@ -11,7 +11,7 @@
  */
 
 import { getUserSettingsService } from './user-settings.service';
-import { getCurrentDailySpendCents } from './daily-spend.service';
+import { getCurrentDailySpendCents, getCurrentDailyDiscoverySpendCents } from './daily-spend.service';
 
 const LOG_PREFIX = '[BudgetGuard]';
 
@@ -171,6 +171,84 @@ export async function checkBudgetAndGetKey(userId: string): Promise<BudgetCheckR
       apiKey: null,
       usingUserKey: false,
       reason: 'Budget check failed, using system key',
+    };
+  }
+}
+
+/**
+ * Check user's discovery budget and get appropriate API key for discovery operations
+ *
+ * Discovery operations include email processing, entity extraction, and calendar sync.
+ * These operations always use system keys but need budget enforcement to prevent overages.
+ *
+ * @param userId - The user for whom discovery operations are being performed
+ * @param operationType - Type of operation: 'discovery' or 'interaction'
+ * @returns BudgetCheckResult with allowed status and API key
+ *
+ * @example
+ * ```typescript
+ * const budgetCheck = await checkDiscoveryBudgetAndGetKey(userId, 'discovery');
+ * if (!budgetCheck.allowed) {
+ *   console.log(`Discovery budget exceeded for user ${userId}, skipping`);
+ *   continue;
+ * }
+ * ```
+ */
+export async function checkDiscoveryBudgetAndGetKey(
+  userId: string,
+  operationType: 'discovery' | 'interaction'
+): Promise<{ allowed: boolean; apiKey?: string; budgetExceeded?: boolean }> {
+  // For interaction operations, use existing logic
+  if (operationType === 'interaction') {
+    const result = await checkBudgetAndGetKey(userId);
+    return {
+      allowed: result.allowed,
+      apiKey: result.apiKey || undefined,
+      budgetExceeded: !result.allowed,
+    };
+  }
+
+  // For discovery operations, check discovery budget
+  const settingsService = getUserSettingsService();
+
+  try {
+    const settings = await settingsService.getSettings(userId);
+
+    // No settings means use defaults (discovery budget = $1/day)
+    const discoveryBudgetCents = settings?.dailyDiscoveryBudgetCents ?? 100; // Default $1/day
+    const timezone = settings?.timezone ?? 'UTC';
+    const budgetResetHour = settings?.budgetResetHour ?? 0;
+
+    // Check current discovery spend
+    const currentDiscoverySpend = await getCurrentDailyDiscoverySpendCents(userId, timezone, budgetResetHour);
+
+    if (currentDiscoverySpend >= discoveryBudgetCents) {
+      console.warn(
+        `${LOG_PREFIX} User ${userId} exceeded discovery budget: ` +
+          `${currentDiscoverySpend}c / ${discoveryBudgetCents}c`
+      );
+      return {
+        allowed: false,
+        budgetExceeded: true,
+      };
+    }
+
+    // Discovery budget OK - return system key (null means use system default)
+    console.log(
+      `${LOG_PREFIX} User ${userId} within discovery budget: ${currentDiscoverySpend}c / ${discoveryBudgetCents}c`
+    );
+    return {
+      allowed: true,
+      apiKey: undefined, // Discovery operations always use system keys
+      budgetExceeded: false,
+    };
+  } catch (error) {
+    // Database or unexpected error - fail open with system key for availability
+    console.error(`${LOG_PREFIX} Discovery budget check failed for user ${userId}, allowing operation:`, error);
+    return {
+      allowed: true,
+      apiKey: undefined,
+      budgetExceeded: false,
     };
   }
 }

@@ -1741,7 +1741,7 @@ export const llmUsage = pgTable(
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    operationType: text('operation_type').notNull(), // 'chat' | 'extraction' | 'training' | 'research' | 'agent' | 'telegram'
+    operationType: text('operation_type').notNull(), // 'chat' | 'extraction' | 'training' | 'research' | 'agent' | 'telegram' | 'discovery'
     model: text('model').notNull(), // e.g., 'claude-opus-4.5', 'anthropic/claude-sonnet-4'
     inputTokens: integer('input_tokens').notNull(),
     outputTokens: integer('output_tokens').notNull(),
@@ -1774,6 +1774,7 @@ export const LLM_OPERATION_TYPE = {
   RESEARCH: 'research',
   AGENT: 'agent',
   TELEGRAM: 'telegram',
+  DISCOVERY: 'discovery',
 } as const;
 
 export type LlmOperationType = (typeof LLM_OPERATION_TYPE)[keyof typeof LLM_OPERATION_TYPE];
@@ -2072,6 +2073,10 @@ export const userSettings = pgTable(
     dailyBudgetCents: integer('daily_budget_cents'), // Daily spending limit in cents (null = unlimited)
     budgetResetHour: integer('budget_reset_hour').default(0), // Hour to reset budget (0-23, UTC by default)
     timezone: text('timezone').default('UTC'), // User's timezone for budget reset
+
+    // Discovery budget settings
+    dailyDiscoveryBudgetCents: integer('daily_discovery_budget_cents').default(100), // Discovery spending limit in cents (default $1/day)
+    currentDailyDiscoverySpendCents: integer('current_daily_discovery_spend_cents').default(0), // Current daily discovery spend
 
     // Timestamps
     createdAt: timestamp('created_at').defaultNow().notNull(),

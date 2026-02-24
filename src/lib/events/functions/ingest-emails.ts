@@ -22,6 +22,7 @@ import {
   markExtractionError,
 } from '@/lib/extraction/progress';
 import type { Email } from '@/lib/google/types';
+import { checkDiscoveryBudgetAndGetKey } from '@/lib/services/budget-guard.service';
 
 const LOG_PREFIX = '[IngestEmails]';
 
@@ -117,6 +118,13 @@ export const ingestEmails = inngest.createFunction(
       for (const user of usersWithGmail) {
         try {
           console.log(`${LOG_PREFIX} Processing user ${user.email}`);
+
+          // Check discovery budget BEFORE processing
+          const budgetCheck = await checkDiscoveryBudgetAndGetKey(user.userId, 'discovery');
+          if (!budgetCheck.allowed) {
+            console.log(`${LOG_PREFIX} Discovery budget exceeded for user ${user.email}, skipping`);
+            continue;
+          }
 
           // Check if user has valid tokens
           if (!user.accessToken && !user.refreshToken) {
@@ -232,7 +240,7 @@ export const ingestEmails = inngest.createFunction(
 
                 // Extract entities
                 const extractor = getEntityExtractor();
-                const extractionResult = await extractor.extractFromEmail(email);
+                const extractionResult = await extractor.extractFromEmail(email, user.userId);
 
                 console.log(
                   `${LOG_PREFIX} Extracted ${extractionResult.entities.length} entities from email ${message.id}`

@@ -392,11 +392,11 @@ export class SyncStatusCache {
       const cacheKey = CacheKeys.sync.status(service, userId);
       const status = await this.cacheService.get(cacheKey);
 
-      if (status && status.startedAt) {
-        status.startedAt = new Date(status.startedAt);
+      if (status && (status as any).startedAt) {
+        (status as any).startedAt = new Date((status as any).startedAt);
       }
 
-      return status;
+      return status as any;
     } catch (error) {
       console.error(`${LOG_PREFIX} Error getting sync status:`, error);
       return null;

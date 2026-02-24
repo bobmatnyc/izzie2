@@ -149,3 +149,75 @@ export async function getDailySpendDetails(
     periodEndUtc: dayEnd,
   };
 }
+
+/**
+ * Calculate the current daily discovery spend for a user in cents
+ * Discovery spend tracks AI costs for automated operations (email processing, entity extraction)
+ *
+ * @param userId - The user ID to calculate discovery spend for
+ * @param timezone - User's timezone (default: 'UTC')
+ * @param budgetResetHour - Hour of day when budget resets (default: 0)
+ * @returns Current daily discovery spend in cents
+ */
+export async function getCurrentDailyDiscoverySpendCents(
+  userId: string,
+  timezone: string = 'UTC',
+  budgetResetHour: number = 0
+): Promise<number> {
+  const db = dbClient.getDb();
+
+  // Get the start of the current billing day
+  const dayStart = getBudgetDayStart(timezone, budgetResetHour);
+
+  // Sum all discovery-related usage costs since the start of the billing day
+  // Discovery operations are tagged with operationType = 'discovery'
+  const result = await db
+    .select({
+      totalCostUsd: sql<number>`COALESCE(SUM(${llmUsage.costUsd}), 0)`.as('total_cost_usd'),
+    })
+    .from(llmUsage)
+    .where(
+      and(
+        eq(llmUsage.userId, userId),
+        gte(llmUsage.createdAt, dayStart),
+        eq(llmUsage.operationType, 'discovery')
+      )
+    );
+
+  const totalCostUsd = result[0]?.totalCostUsd ?? 0;
+
+  // Convert USD to cents (multiply by 100 and round)
+  return Math.round(totalCostUsd * 100);
+}
+
+/**
+ * Add discovery spend for a user
+ * Called after each discovery operation (email processing, entity extraction) to track costs
+ *
+ * @param userId - The user ID to add spend for
+ * @param costCents - Cost to add in cents
+ */
+export async function addDiscoverySpend(userId: string, costCents: number): Promise<void> {
+  // Discovery spend is tracked automatically through llmUsage table
+  // with operationType = 'discovery', so this is a no-op placeholder
+  // The cost tracking happens in the AI client when logCost is called
+}
+
+/**
+ * Check if user is over their daily discovery budget
+ *
+ * @param userId - The user ID to check
+ * @param dailyDiscoveryBudgetCents - Discovery budget limit in cents (default: 100 = $1)
+ * @param timezone - User's timezone
+ * @param budgetResetHour - Hour of day when budget resets
+ * @returns true if user is over discovery budget, false otherwise
+ */
+export async function isOverDailyDiscoveryBudget(
+  userId: string,
+  dailyDiscoveryBudgetCents: number = 100,
+  timezone: string = 'UTC',
+  budgetResetHour: number = 0
+): Promise<boolean> {
+  const currentSpend = await getCurrentDailyDiscoverySpendCents(userId, timezone, budgetResetHour);
+  return currentSpend >= dailyDiscoveryBudgetCents;
+}

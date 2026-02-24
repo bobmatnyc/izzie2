@@ -142,7 +142,7 @@ export class CacheService {
         const value = await this.client.get(fullKey);
         if (value !== null && value !== undefined) {
           this.recordHit();
-          return this.deserialize<T>(value);
+          return this.deserialize<T>(String(value));
         }
       }
 
@@ -183,7 +183,7 @@ export class CacheService {
           await (this.client as any).setex(fullKey, ttl, serializedValue);
         } else {
           // Upstash client
-          await this.client.setex(fullKey, ttl, serializedValue);
+          await (this.client as any).setex(fullKey, ttl, serializedValue);
         }
       } else {
         // Fallback to memory cache

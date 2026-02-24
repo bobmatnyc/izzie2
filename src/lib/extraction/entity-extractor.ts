@@ -58,7 +58,7 @@ export class EntityExtractor {
   /**
    * Extract entities from a single email
    */
-  async extractFromEmail(email: Email): Promise<ExtractionResult> {
+  async extractFromEmail(email: Email, userId?: string): Promise<ExtractionResult> {
     const prompt = buildExtractionPrompt(email, this.config, this.userIdentity);
 
     try {
@@ -76,7 +76,9 @@ export class EntityExtractor {
           model: MODELS.CLASSIFIER, // Mistral Small
           maxTokens: 1500, // Increased for relationships
           temperature: 0.1, // Low temperature for consistent extraction
-          logCost: false, // Avoid cluttering logs
+          logCost: true, // Enable cost tracking for discovery budget enforcement
+          operationType: 'discovery', // Tag as discovery operation
+          userId: userId, // Track per-user costs
         }
       );
 
@@ -121,7 +123,7 @@ export class EntityExtractor {
   /**
    * Extract entities from a single calendar event
    */
-  async extractFromCalendarEvent(event: CalendarEvent): Promise<CalendarExtractionResult> {
+  async extractFromCalendarEvent(event: CalendarEvent, userId?: string): Promise<CalendarExtractionResult> {
     const prompt = buildCalendarExtractionPrompt(event, this.config);
 
     try {
@@ -139,7 +141,9 @@ export class EntityExtractor {
           model: MODELS.CLASSIFIER, // Mistral Small
           maxTokens: 1500, // Increased for relationships
           temperature: 0.1, // Low temperature for consistent extraction
-          logCost: false, // Avoid cluttering logs
+          logCost: true, // Enable cost tracking for discovery budget enforcement
+          operationType: 'discovery', // Tag as discovery operation
+          userId: userId, // Track per-user costs
         }
       );
 

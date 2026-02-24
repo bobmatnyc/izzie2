@@ -26,6 +26,7 @@ export interface UserSettingsView {
   dailyBudgetCents: number | null;
   budgetResetHour: number;
   timezone: string;
+  dailyDiscoveryBudgetCents: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +39,7 @@ export interface UpdateUserSettingsInput {
   dailyBudgetCents?: number | null;
   budgetResetHour?: number;
   timezone?: string;
+  dailyDiscoveryBudgetCents?: number | null;
 }
 
 /**
@@ -151,6 +153,10 @@ export class UserSettingsService {
 
     if (input.timezone !== undefined) {
       updateData.timezone = input.timezone;
+    }
+
+    if (input.dailyDiscoveryBudgetCents !== undefined) {
+      updateData.dailyDiscoveryBudgetCents = input.dailyDiscoveryBudgetCents;
     }
 
     let settings: UserSettings;
@@ -295,6 +301,7 @@ export class UserSettingsService {
       dailyBudgetCents: settings.dailyBudgetCents,
       budgetResetHour: settings.budgetResetHour ?? 0,
       timezone: settings.timezone ?? 'UTC',
+      dailyDiscoveryBudgetCents: settings.dailyDiscoveryBudgetCents,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };

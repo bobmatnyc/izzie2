@@ -8,6 +8,7 @@ import type { TaskContentExtractedPayload, EntitiesExtractedPayload } from '../t
 import { getEntityExtractor } from '@/lib/extraction/entity-extractor';
 import { persistenceService } from '@/lib/persistence';
 import type { Entity } from '@/lib/extraction/types';
+import { checkDiscoveryBudgetAndGetKey } from '@/lib/services/budget-guard.service';
 
 const LOG_PREFIX = '[IngestTasks]';
 
@@ -30,6 +31,13 @@ export const extractTaskEntities = inngest.createFunction(
     // Step 1: Extract entities from task
     const extractionResult = await step.run('extract-entities', async () => {
       try {
+        // Check discovery budget BEFORE processing
+        const budgetCheck = await checkDiscoveryBudgetAndGetKey(taskData.userId, 'discovery');
+        if (!budgetCheck.allowed) {
+          console.log(`${LOG_PREFIX} Discovery budget exceeded for user ${taskData.userId}, skipping task extraction`);
+          return { entities: [], relationships: [], spam: { isSpam: false, spamScore: 0 } };
+        }
+
         const extractor = getEntityExtractor();
 
         // Build content from task data
@@ -53,7 +61,7 @@ export const extractTaskEntities = inngest.createFunction(
           internalDate: taskDate.getTime(),
         };
 
-        const result = await extractor.extractFromEmail(taskAsEmail);
+        const result = await extractor.extractFromEmail(taskAsEmail, taskData.userId);
 
         console.log(`${LOG_PREFIX} Extracted ${result.entities.length} entities from task ${taskData.taskId}`);
 
@@ -110,14 +118,14 @@ export const extractTaskEntities = inngest.createFunction(
             completed: taskData.completed,
             parent: taskData.parent,
             entities: extractionResult.entities,
-            extractionModel: extractionResult.model,
-            extractionCost: extractionResult.cost,
+            extractionModel: 'model' in extractionResult ? extractionResult.model : 'unknown',
+            extractionCost: 'cost' in extractionResult ? extractionResult.cost : 0,
             spam: extractionResult.spam,
-            entityTypes: [...new Set(extractionResult.entities.map((e) => e.type))],
+            entityTypes: [...new Set(extractionResult.entities?.filter(e => e != null).map((e) => e.type) || [])],
             entityCount: extractionResult.entities.length,
           },
-          entities: extractionResult.entities,
-          importance: calculateTaskImportance(taskData, extractionResult.entities),
+          entities: extractionResult.entities?.filter(e => e != null) as any[] || [],
+          importance: calculateTaskImportance(taskData, extractionResult.entities?.filter(e => e != null) as any[] || []),
           // embedding will be generated later
         });
 
@@ -137,7 +145,7 @@ export const extractTaskEntities = inngest.createFunction(
     // Step 3: Emit entities extracted event for downstream processing
     await step.run('emit-entities-event', async () => {
       // extractedAt may be serialized as string by inngest step.run (runtime vs type definition)
-      const extractedAt = extractionResult.extractedAt as unknown;
+      const extractedAt = ('extractedAt' in extractionResult ? extractionResult.extractedAt : new Date().toISOString()) as unknown;
       const extractedAtStr = typeof extractedAt === 'string'
         ? extractedAt
         : (extractedAt as Date).toISOString();
@@ -147,8 +155,8 @@ export const extractTaskEntities = inngest.createFunction(
           userId: taskData.userId,
           sourceId: taskData.taskId,
           sourceType: 'task',
-          entities: extractionResult.entities,
-          relationships: extractionResult.relationships.map((rel) => ({
+          entities: extractionResult.entities?.filter(e => e != null) || [],
+          relationships: (extractionResult.relationships?.filter(rel => rel != null) || []).map((rel) => ({
             fromType: rel.fromType,
             fromValue: rel.fromValue,
             toType: rel.toType,
@@ -159,8 +167,8 @@ export const extractTaskEntities = inngest.createFunction(
           })),
           spam: extractionResult.spam,
           extractedAt: extractedAtStr,
-          cost: extractionResult.cost,
-          model: extractionResult.model,
+          cost: 'cost' in extractionResult ? extractionResult.cost : 0,
+          model: 'model' in extractionResult ? extractionResult.model : 'unknown',
         } satisfies EntitiesExtractedPayload,
       });
 
@@ -171,8 +179,8 @@ export const extractTaskEntities = inngest.createFunction(
       taskId: taskData.taskId,
       memoryEntryId: memoryEntry?.id,
       entityCount: extractionResult.entities.length,
-      cost: extractionResult.cost,
-      importance: calculateTaskImportance(taskData, extractionResult.entities),
+      cost: 'cost' in extractionResult ? extractionResult.cost : 0,
+      importance: calculateTaskImportance(taskData, extractionResult.entities?.filter(e => e != null) || []),
     };
   }
 );

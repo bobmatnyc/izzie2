@@ -51,7 +51,6 @@ function getRedisConfig(): RedisOptions | null {
     return {
       // Parse Redis URL (redis://user:pass@host:port/db) # pragma: allowlist secret
       host: process.env.REDIS_URL,
-      retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
       lazyConnect: true,
       keepAlive: 30000,
@@ -74,7 +73,6 @@ function getRedisConfig(): RedisOptions | null {
       port: parseInt(process.env.REDIS_PORT || '6379', 10),
       password: process.env.REDIS_PASSWORD || undefined,
       db: parseInt(process.env.REDIS_DB || '0', 10),
-      retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
       lazyConnect: true,
       keepAlive: 30000,

@@ -421,13 +421,13 @@ export function cacheAIResponse(ttl?: number) {
     const method = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {
-      const cacheService = getAICacheService();
+      const cacheService = getCacheService();
 
       // Create cache key from function name and arguments
       const cacheKey = `ai:function:${propertyName}:${hashObject(args)}`;
 
       // Try to get from cache
-      const cached = await cacheService.cacheService.get(cacheKey);
+      const cached = await cacheService.get(cacheKey);
       if (cached) {
         console.log(`${LOG_PREFIX} Function cache hit: ${propertyName}`);
         return cached;
@@ -437,7 +437,7 @@ export function cacheAIResponse(ttl?: number) {
       const result = await method.apply(this, args);
 
       // Cache the result
-      await cacheService.cacheService.set(cacheKey, result, ttl || AI_RESPONSE_TTL);
+      await cacheService.set(cacheKey, result, ttl || AI_RESPONSE_TTL);
 
       return result;
     };
@@ -457,7 +457,7 @@ export function createCachedAICall<T extends any[], R>(
     model?: string;
   } = {}
 ): (...args: T) => Promise<R> {
-  const cacheService = getAICacheService();
+  const cacheService = getCacheService();
 
   return async (...args: T): Promise<R> => {
     // Generate cache key
@@ -468,7 +468,7 @@ export function createCachedAICall<T extends any[], R>(
     const cacheKey = CacheKeys.ai.response(key, options.model);
 
     // Try cache first
-    const cached = await cacheService.cacheService.get<CachedAIResponse>(cacheKey);
+    const cached = await cacheService.get<CachedAIResponse>(cacheKey);
     if (cached) {
       console.log(`${LOG_PREFIX} Cached AI call hit`);
       return cached.response as R;
@@ -478,10 +478,13 @@ export function createCachedAICall<T extends any[], R>(
     const result = await fn(...args);
 
     // Cache the result
-    await cacheService.cacheResponse(key, result as any, {
+    const cachedResponse: CachedAIResponse = {
+      response: result as string | object,
       model: options.model,
-      ttl: options.ttl,
-    });
+      timestamp: Date.now(),
+      ttl: options.ttl || AI_RESPONSE_TTL
+    };
+    await cacheService.set(cacheKey, cachedResponse, options.ttl || AI_RESPONSE_TTL);
 
     return result;
   };
