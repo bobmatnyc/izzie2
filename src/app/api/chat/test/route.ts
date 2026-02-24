@@ -92,14 +92,14 @@ export async function POST(request: NextRequest) {
     if (isProduction) {
       if (!expectedSecret) {
         return NextResponse.json(
-          { error: 'CHAT_TEST_SECRET not configured. This endpoint is disabled in production.' },
-          { status: 403 }
+          { error: 'Not found' },
+          { status: 404 }
         );
       }
       if (testSecret !== expectedSecret) {
         return NextResponse.json(
-          { error: 'Invalid or missing X-Test-Secret header' },
-          { status: 403 }
+          { error: 'Not found' },
+          { status: 404 }
         );
       }
     }
@@ -346,14 +346,14 @@ export async function GET(request: NextRequest) {
     if (isProduction) {
       if (!expectedSecret) {
         return NextResponse.json(
-          { error: 'CHAT_TEST_SECRET not configured. This endpoint is disabled in production.' },
-          { status: 403 }
+          { error: 'Not found' },
+          { status: 404 }
         );
       }
       if (testSecret !== expectedSecret) {
         return NextResponse.json(
-          { error: 'Invalid or missing X-Test-Secret header' },
-          { status: 403 }
+          { error: 'Not found' },
+          { status: 404 }
         );
       }
     }

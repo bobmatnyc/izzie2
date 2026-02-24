@@ -7,6 +7,14 @@ import { NextResponse } from 'next/server';
 import { getAIClient, MODELS, MODEL_CONFIGS } from '@/lib/ai';
 
 export async function GET() {
+  // Block in production for security
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Not found' },
+      { status: 404 }
+    );
+  }
+
   const startTime = Date.now();
 
   try {

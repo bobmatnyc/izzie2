@@ -13,40 +13,19 @@ import { saveEntities } from '@/lib/weaviate/entities';
 import type { Entity } from '@/lib/extraction/types';
 
 import type { Contact } from '@/lib/google/types';
+import { getSyncStatusCache } from '@/lib/cache';
 
 // Allow longer execution time for contact sync (60 seconds)
 export const maxDuration = 60;
-
-// In-memory sync status (in production, use Redis or database)
-let syncStatus: {
-  isRunning: boolean;
-  contactsProcessed: number;
-  entitiesSaved: number;
-  lastSync?: Date;
-  error?: string;
-} = {
-  isRunning: false,
-  contactsProcessed: 0,
-  entitiesSaved: 0,
-};
 
 /**
  * POST /api/contacts/sync
  * Start contact synchronization
  */
 export async function POST(request: NextRequest) {
-  try {
-    // Check if sync is already running
-    if (syncStatus.isRunning) {
-      return NextResponse.json(
-        {
-          error: 'Sync already in progress',
-          status: syncStatus,
-        },
-        { status: 409 }
-      );
-    }
+  const syncStatusCache = getSyncStatusCache();
 
+  try {
     // Require authentication - use headers() from next/headers for proper cookie access
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user?.id) {
@@ -54,24 +33,48 @@ export async function POST(request: NextRequest) {
     }
     const userId = session.user.id;
 
+    // Check if sync is already running using Redis cache
+    const currentStatus = await syncStatusCache.getSyncStatus('contacts', userId);
+    if (currentStatus?.isRunning) {
+      return NextResponse.json(
+        {
+          error: 'Sync already in progress',
+          status: currentStatus,
+        },
+        { status: 409 }
+      );
+    }
+
     // Parse request body
     const body = await request.json().catch(() => ({}));
     const { maxContacts = 1000 } = body;
 
     // Run sync synchronously to capture errors properly
-    // (In-memory status doesn't work reliably on serverless)
     try {
       await startSync(userId, maxContacts);
+
+      // Get final status
+      const finalStatus = await syncStatusCache.getSyncStatus('contacts', userId);
+
       return NextResponse.json({
         message: 'Contact sync completed',
-        status: syncStatus,
+        status: finalStatus,
       });
     } catch (syncError) {
       console.error('[Contacts Sync] Sync failed:', syncError);
+
+      // Update status with error
+      await syncStatusCache.setSyncStatus('contacts', userId, {
+        isRunning: false,
+        error: syncError instanceof Error ? syncError.message : 'Sync failed',
+      });
+
+      const errorStatus = await syncStatusCache.getSyncStatus('contacts', userId);
+
       return NextResponse.json(
         {
           error: syncError instanceof Error ? syncError.message : 'Sync failed',
-          status: syncStatus,
+          status: errorStatus,
         },
         { status: 500 }
       );
@@ -93,21 +96,50 @@ export async function POST(request: NextRequest) {
  * Get sync status
  */
 export async function GET() {
-  return NextResponse.json({
-    status: syncStatus,
-  });
+  const syncStatusCache = getSyncStatusCache();
+
+  try {
+    // Require authentication to get user ID
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
+    const status = await syncStatusCache.getSyncStatus('contacts', userId);
+
+    return NextResponse.json({
+      status: status || {
+        isRunning: false,
+        contactsProcessed: 0,
+        entitiesSaved: 0,
+      },
+    });
+  } catch (error) {
+    console.error('[Contacts Sync] Error getting sync status:', error);
+    return NextResponse.json(
+      { error: 'Failed to get sync status' },
+      { status: 500 }
+    );
+  }
 }
 
 /**
  * Background sync function
  */
 async function startSync(userId: string, maxContacts: number): Promise<void> {
-  syncStatus = {
+  const syncStatusCache = getSyncStatusCache();
+
+  // Set initial status
+  await syncStatusCache.setSyncStatus('contacts', userId, {
     isRunning: true,
-    contactsProcessed: 0,
-    entitiesSaved: 0,
-    lastSync: new Date(),
-  };
+    startedAt: new Date(),
+    progress: 0,
+    message: 'Starting sync...',
+  });
 
   try {
     console.log(`[Contacts Sync] Starting sync for user ${userId}...`);
@@ -118,6 +150,13 @@ async function startSync(userId: string, maxContacts: number): Promise<void> {
     if (!tokens || !tokens.accessToken) {
       throw new Error('No Google access token found for user');
     }
+
+    // Update progress
+    await syncStatusCache.setSyncProgress('contacts', userId, {
+      current: 0,
+      total: maxContacts,
+      message: 'Connecting to Google Contacts API...',
+    });
 
     // Create OAuth2 client
     const oauth2Client = new google.auth.OAuth2(
@@ -140,35 +179,63 @@ async function startSync(userId: string, maxContacts: number): Promise<void> {
     // Initialize Contacts Service
     const contactsService = await getContactsService(oauth2Client);
 
+    // Update progress
+    await syncStatusCache.setSyncProgress('contacts', userId, {
+      current: 0,
+      total: maxContacts,
+      message: 'Fetching contacts...',
+    });
+
     // Fetch all contacts with pagination
     const contacts = await contactsService.fetchAllContacts(maxContacts);
 
-    syncStatus.contactsProcessed = contacts.length;
-
     console.log(`[Contacts Sync] Fetched ${contacts.length} contacts`);
+
+    // Update progress
+    await syncStatusCache.setSyncProgress('contacts', userId, {
+      current: contacts.length,
+      total: contacts.length,
+      message: 'Converting to entities...',
+    });
 
     // Convert contacts to Person entities
     const entities = convertContactsToEntities(contacts);
 
     console.log(`[Contacts Sync] Converted to ${entities.length} Person entities`);
 
+    // Update progress
+    await syncStatusCache.setSyncProgress('contacts', userId, {
+      current: contacts.length,
+      total: contacts.length,
+      message: 'Saving entities...',
+    });
+
     // Save entities to Weaviate
     if (entities.length > 0) {
       await saveEntities(entities, userId, 'contacts-sync');
-      syncStatus.entitiesSaved = entities.length;
       console.log(`[Contacts Sync] Saved ${entities.length} entities to Weaviate`);
     }
 
-    syncStatus.isRunning = false;
-    syncStatus.lastSync = new Date();
+    // Set final success status
+    await syncStatusCache.setSyncStatus('contacts', userId, {
+      isRunning: false,
+      progress: 100,
+      message: `Successfully synced ${contacts.length} contacts`,
+    });
 
     console.log(
-      `[Contacts Sync] Completed. Processed ${contacts.length} contacts, saved ${syncStatus.entitiesSaved} entities`
+      `[Contacts Sync] Completed. Processed ${contacts.length} contacts, saved ${entities.length} entities`
     );
   } catch (error) {
     console.error('[Contacts Sync] Sync failed:', error);
-    syncStatus.isRunning = false;
-    syncStatus.error = error instanceof Error ? error.message : 'Unknown error';
+
+    // Set error status
+    await syncStatusCache.setSyncStatus('contacts', userId, {
+      isRunning: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: 'Sync failed',
+    });
+
     throw error;
   }
 }

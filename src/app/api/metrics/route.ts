@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getMetricsCollector } from '@/lib/metrics';
+import { requireAuth } from '@/lib/auth';
 
 /**
  * GET /api/metrics
@@ -132,6 +133,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication for metrics reset
+    await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
 

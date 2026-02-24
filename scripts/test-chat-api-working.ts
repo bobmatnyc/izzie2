@@ -30,16 +30,41 @@ async function generateEmbedding(text: string): Promise<number[]> {
   return data.data[0].embedding;
 }
 
+// Security: Validation functions for test script
+function validateTestLimit(limit: number): number {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new Error('Test limit must be an integer between 1 and 50');
+  }
+  return limit;
+}
+
+function validateTestEmbedding(embedding: number[]): number[] {
+  if (!Array.isArray(embedding) || embedding.length === 0 || embedding.length > 2048) {
+    throw new Error('Invalid test embedding vector');
+  }
+  if (embedding.some(n => typeof n !== 'number' || !Number.isFinite(n))) {
+    throw new Error('Test embedding contains invalid numbers');
+  }
+  return embedding;
+}
+
 async function searchEntities(query: string, limit: number = 10) {
   const db = dbClient.getDb();
+
+  // Security: Validate inputs
+  const safeLimit = validateTestLimit(limit);
 
   // Generate embedding for query
   console.log('\n🔍 Generating embedding for query...');
   const embedding = await generateEmbedding(query);
-  console.log(`   Vector dimensions: ${embedding.length}`);
+  const safeEmbedding = validateTestEmbedding(embedding);
+  console.log(`   Vector dimensions: ${safeEmbedding.length}`);
 
   // Search similar memory entries using pgvector
   console.log('\n🔎 Searching similar memory entries...');
+
+  // Security: Use safe embedding string to prevent SQL injection
+  const embeddingStr = JSON.stringify(safeEmbedding);
 
   const results = await db.execute(sql`
     SELECT
@@ -47,12 +72,12 @@ async function searchEntities(query: string, limit: number = 10) {
       content,
       summary,
       metadata,
-      1 - (embedding <=> ${JSON.stringify(embedding)}::vector) as similarity
+      1 - (embedding <=> ${embeddingStr}::vector) as similarity
     FROM memory_entries
     WHERE embedding IS NOT NULL
       AND deleted = false
-    ORDER BY embedding <=> ${JSON.stringify(embedding)}::vector
-    LIMIT ${limit}
+    ORDER BY embedding <=> ${embeddingStr}::vector
+    LIMIT ${safeLimit}
   `);
 
   console.log(`   Found ${results.rows.length} similar memories`);

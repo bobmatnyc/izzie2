@@ -56,6 +56,31 @@ function getDb() {
   return dbClient.getDb();
 }
 
+// Security: Input validation functions
+function validateSearchUserId(userId: string): string {
+  if (!userId || typeof userId !== 'string' || userId.length > 100 || /[<>'"\\]/.test(userId)) {
+    throw new Error('Invalid user ID format for search');
+  }
+  return userId;
+}
+
+function validateSearchLimit(limit: number): number {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error('Search limit must be an integer between 1 and 100');
+  }
+  return limit;
+}
+
+function validateEmbeddingVector(embedding: number[]): number[] {
+  if (!Array.isArray(embedding) || embedding.length === 0 || embedding.length > 2048) {
+    throw new Error('Invalid embedding vector length');
+  }
+  if (embedding.some(n => typeof n !== 'number' || !Number.isFinite(n))) {
+    throw new Error('Embedding vector contains invalid numbers');
+  }
+  return embedding;
+}
+
 /**
  * Search conversations using semantic similarity
  *
@@ -72,8 +97,17 @@ export async function searchConversations(
   console.log(`${LOG_PREFIX} Searching conversations for user ${userId}: "${query.substring(0, 50)}..."`);
 
   try {
+    // Security: Validate all inputs
+    const safeUserId = validateSearchUserId(userId);
+    const safeLimit = validateSearchLimit(limit);
+
     // Generate embedding for the search query
     const queryEmbedding = await embeddingService.generateEmbeddingWithFallback(query);
+    const safeEmbedding = validateEmbeddingVector(queryEmbedding);
+
+    // Security: Use parameterized queries to prevent SQL injection
+    // Convert embedding to safe string representation
+    const embeddingStr = `[${safeEmbedding.join(',')}]`;
 
     // Perform vector similarity search using pgvector
     // Using cosine distance (1 - cosine_similarity)
@@ -92,14 +126,14 @@ export async function searchConversations(
         cm.role,
         cm.content,
         cm.created_at,
-        1 - (cm.embedding <=> ${`[${queryEmbedding.join(',')}]`}::vector) as similarity,
+        1 - (cm.embedding <=> ${embeddingStr}::vector) as similarity,
         cs.title as session_title
       FROM chat_messages cm
       LEFT JOIN chat_sessions cs ON cm.session_id = cs.id
-      WHERE cm.user_id = ${userId}
+      WHERE cm.user_id = ${safeUserId}
         AND cm.embedding IS NOT NULL
-      ORDER BY cm.embedding <=> ${`[${queryEmbedding.join(',')}]`}::vector
-      LIMIT ${limit}
+      ORDER BY cm.embedding <=> ${embeddingStr}::vector
+      LIMIT ${safeLimit}
     `);
 
     console.log(`${LOG_PREFIX} Found ${results.rows.length} results`);
@@ -168,6 +202,14 @@ export async function getConversationHistory(
   }
 }
 
+// Security: Additional validation functions
+function validateDaysBack(daysBack: number): number {
+  if (!Number.isInteger(daysBack) || daysBack < 1 || daysBack > 365) {
+    throw new Error('Days back must be an integer between 1 and 365');
+  }
+  return daysBack;
+}
+
 /**
  * Get recent conversations for a user
  *
@@ -184,10 +226,16 @@ export async function getRecentConversations(
   console.log(`${LOG_PREFIX} Getting recent conversations for user ${userId}`);
 
   try {
+    // Security: Validate all inputs
+    const safeUserId = validateSearchUserId(userId);
+    const safeLimit = validateSearchLimit(limit);
+    const safeDaysBack = validateDaysBack(daysBack);
+
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    cutoffDate.setDate(cutoffDate.getDate() - safeDaysBack);
 
     // Get recent sessions with message count and last message
+    // Security: Use validated inputs directly since they're now safe
     const results = await getDb().execute<{
       session_id: string;
       title: string | null;
@@ -209,12 +257,12 @@ export async function getRecentConversations(
         ) as preview
       FROM chat_sessions cs
       LEFT JOIN chat_messages cm ON cs.id = cm.session_id
-      WHERE cs.user_id = ${userId}
+      WHERE cs.user_id = ${safeUserId}
         AND cs.updated_at >= ${cutoffDate}
       GROUP BY cs.id, cs.title
       HAVING COUNT(cm.id) > 0
       ORDER BY MAX(cm.created_at) DESC
-      LIMIT ${limit}
+      LIMIT ${safeLimit}
     `);
 
     console.log(`${LOG_PREFIX} Found ${results.rows.length} recent conversations`);
