@@ -13,7 +13,33 @@ import {
   isRedisConfigured as _isRedisConfigured,
   isLocalRedisConfigured as _isLocalRedisConfigured,
   isUpstashRedisConfigured as _isUpstashRedisConfigured,
+  checkRedisHealth,
 } from './redis-client';
+
+import {
+  getCacheService,
+  get,
+  set,
+  del,
+  invalidatePattern,
+} from './cache-service';
+
+import {
+  getSessionCacheService,
+} from './session-cache';
+
+import {
+  getAICacheService,
+} from './ai-cache';
+
+import {
+  getDBCacheService,
+  getDBCacheInvalidationHooks,
+} from './db-cache';
+
+import {
+  getAPICacheInvalidator,
+} from './api-cache-middleware';
 
 // Core cache infrastructure
 export {
@@ -130,7 +156,6 @@ export class CacheMonitor {
    * Get comprehensive cache statistics
    */
   static async getCacheStats() {
-    // TODO: Fix cache service integration
     const [
       redisHealth,
       cacheStats,
@@ -138,16 +163,11 @@ export class CacheMonitor {
       aiStats,
       dbStats,
     ] = await Promise.allSettled([
-      // checkRedisHealth(),
-      Promise.resolve(null),
-      // getCacheService().getStats(),
-      Promise.resolve(null),
-      // getSessionCacheService().getSessionCacheStats(),
-      Promise.resolve(null),
-      // getAICacheService().getAICacheStats(),
-      Promise.resolve(null),
-      // getDBCacheService().getDBCacheStats(),
-      Promise.resolve(null),
+      checkRedisHealth(),
+      getCacheService().getStats(),
+      getSessionCacheService().getSessionCacheStats(),
+      getAICacheService().getAICacheStats(),
+      getDBCacheService().getDBCacheStats(),
     ]);
 
     return {
@@ -164,8 +184,7 @@ export class CacheMonitor {
    * Reset all cache statistics
    */
   static async resetStats() {
-    // TODO: Fix cache service integration
-    // getCacheService().resetStats();
+    getCacheService().resetStats();
   }
 
   /**
@@ -179,11 +198,8 @@ export class CacheMonitor {
   }> {
     try {
       const [redisHealth, cacheAvailable] = await Promise.all([
-        // TODO: Fix cache service integration
-        // checkRedisHealth(),
-        Promise.resolve({ available: false }),
-        // getCacheService().isAvailable(),
-        Promise.resolve(false),
+        checkRedisHealth(),
+        getCacheService().isAvailable(),
       ]);
 
       const healthy = redisHealth.available && cacheAvailable;
@@ -221,9 +237,8 @@ export class CacheWarmup {
   static async warmupForUsers(userIds: string[]) {
     console.log(`[CacheWarmup] Warming up cache for ${userIds.length} users`);
 
-    // TODO: Fix cache service integration
-    // const sessionCache = getSessionCacheService();
-    // await sessionCache.warmupCache(userIds);
+    const sessionCache = getSessionCacheService();
+    await sessionCache.warmupCache(userIds);
 
     console.log(`[CacheWarmup] Warmup completed for ${userIds.length} users`);
   }
@@ -250,11 +265,9 @@ export class CacheInvalidation {
    */
   static async invalidateUser(userId: string) {
     await Promise.allSettled([
-      // TODO: Fix cache service integration
-      // getSessionCacheService().invalidateUserSessions(userId),
-      // getDBCacheService().invalidateUserCache(userId),
-      // getAPICacheInvalidator().invalidateUserCache(userId),
-      Promise.resolve(),
+      getSessionCacheService().invalidateUserSessions(userId),
+      getDBCacheService().invalidateUserCache(userId),
+      getAPICacheInvalidator().invalidateUserCache(userId),
     ]);
 
     console.log(`[CacheInvalidation] Invalidated all cache for user: ${userId}`);
@@ -264,21 +277,17 @@ export class CacheInvalidation {
    * Invalidate cache when data changes
    */
   static async onDataChange(type: 'contact' | 'entity' | 'relationship', userId: string) {
-    // TODO: Fix cache service integration
-    // const hooks = getDBCacheInvalidationHooks();
+    const hooks = getDBCacheInvalidationHooks();
 
     switch (type) {
       case 'contact':
-        // TODO: Fix cache service integration
-        // await hooks.onContactChange(userId);
+        await hooks.onContactChange(userId);
         break;
       case 'entity':
-        // TODO: Fix cache service integration
-        // await hooks.onEntityChange(userId);
+        await hooks.onEntityChange(userId);
         break;
       case 'relationship':
-        // TODO: Fix cache service integration
-        // await hooks.onRelationshipChange(userId);
+        await hooks.onRelationshipChange(userId);
         break;
     }
 
@@ -290,11 +299,9 @@ export class CacheInvalidation {
    */
   static async invalidateAll() {
     await Promise.allSettled([
-      // TODO: Fix cache service integration
-      // getCacheService().clear(),
-      // getAPICacheInvalidator().clearAllAPICache(),
-      // getAICacheService().clearAllAICache(),
-      Promise.resolve(),
+      getCacheService().clear(),
+      getAPICacheInvalidator().clearAllAPICache(),
+      getAICacheService().clearAllAICache(),
     ]);
 
     console.log(`[CacheInvalidation] Invalidated all cache`);
@@ -335,22 +342,22 @@ export class CacheConfigUtility {
  * Default export with common cache operations
  */
 export default {
-  // Core operations (commented out until cache system is fully integrated)
-  // get,
-  // set,
-  // del,
-  // invalidatePattern,
+  // Core operations
+  get,
+  set,
+  del,
+  invalidatePattern,
 
-  // Services (commented out until cache system is fully integrated)
-  // getCacheService,
-  // getSessionCacheService,
-  // getAICacheService,
-  // getDBCacheService,
+  // Services
+  getCacheService,
+  getSessionCacheService,
+  getAICacheService,
+  getDBCacheService,
 
   // Utilities
   monitor: CacheMonitor,
-  // warmup: CacheWarmup,
-  // invalidation: CacheInvalidation,
+  warmup: CacheWarmup,
+  invalidation: CacheInvalidation,
   config: CacheConfigUtility,
 
   // TTL constants
